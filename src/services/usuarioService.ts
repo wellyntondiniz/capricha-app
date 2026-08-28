@@ -22,6 +22,7 @@ export async function salvarUsuario(usuario: Omit<Usuario, 'id'>): Promise<Usuar
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(usuario),
   });
-  if (!res.ok) throw new Error('Erro ao salvar usuário');
+  if (res.status === 409) throw new Error('Email já cadastrado!');
+  else if (!res.ok) throw new Error('Erro ao salvar usuário');
   return res.json();
 }
