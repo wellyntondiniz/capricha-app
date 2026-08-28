@@ -17,9 +17,23 @@ export default function RegisterScreen() {
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
+  function emailValido(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
   async function handleCadastro() {
     if (!nome || !email || !senha || !confirmarSenha) {
-      Alert.alert('Erro', 'Preencha todos os campos.');
+      console.error("Preencha todos os campos!");
+      return;
+    }
+
+    if (!emailValido(email)) {
+      console.error("Digite um e-mail válido!");
+      return;
+    }
+
+    if (senha !== confirmarSenha) {
+      console.error("Erro: as senhas não coincidem!");
       return;
     }
 
@@ -31,10 +45,7 @@ export default function RegisterScreen() {
         ativo: true,
       });
 
-      Alert.alert(
-        'Sucesso',
-        `Usuário ${usuario.nome} cadastrado com sucesso!`
-      );
+      console.info("Sucesso: usuario cadastrado com sucesso!");
 
       setNome('');
       setEmail('');
@@ -43,10 +54,11 @@ export default function RegisterScreen() {
     } catch (error) {
       console.error(error);
 
-      Alert.alert(
-        'Erro',
-        'Não foi possível cadastrar o usuário.'
-      );
+      if (error instanceof Error) {
+        Alert.alert('Erro', error.message);
+      } else {
+        Alert.alert('Erro', 'Não foi possível cadastrar o usuário.');
+      }
     }
   }
 
