@@ -1,6 +1,9 @@
+import React from 'react';
 import * as Device from 'expo-device';
 import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import CadastroPalestra from './cadastro-palestra';
 
 import { AnimatedIcon } from '@/components/animated-icon';
 import { HintRow } from '@/components/hint-row';
@@ -28,7 +31,7 @@ function getDevMenuHint() {
   );
 }
 
-export default function HomeScreen() {
+function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -59,6 +62,11 @@ export default function HomeScreen() {
       </SafeAreaView>
     </ThemedView>
   );
+}
+
+export default function Index() {
+
+  return <CadastroPalestra />;
 }
 
 const styles = StyleSheet.create({
