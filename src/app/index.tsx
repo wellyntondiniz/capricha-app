@@ -38,9 +38,9 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.secondaryBox}>
+        <Pressable style={styles.secondaryBox} onPress={() => router.push('/cadastro')}>
           <Text style={styles.secondaryText}>Não possui uma conta? <Text style={styles.link}>Criar conta</Text></Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.footer}>© 2026 · Sistema de Usuários</Text>
       </ScrollView>
