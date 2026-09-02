@@ -1,98 +1,68 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function LoginScreen() {
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+        <View style={styles.icon}><Text style={styles.star}>✦</Text></View>
+        <Text style={styles.heading}>Acesse sua conta</Text>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        <View style={styles.card}>
+          <Text style={styles.title}>Login de usuário</Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="voce@exemplo.com"
+            placeholderTextColor="#777B86"
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <Text style={styles.label}>Senha</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Digite sua senha"
+            placeholderTextColor="#777B86"
+            secureTextEntry
+          />
+
+          <Pressable onPress={() => router.push('/esqueci-senha')}>
+            <Text style={styles.forgot}>Esqueceu sua senha?</Text>
+          </Pressable>
+
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>Entrar</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.secondaryBox}>
+          <Text style={styles.secondaryText}>Não possui uma conta? <Text style={styles.link}>Criar conta</Text></Text>
+        </View>
+
+        <Text style={styles.footer}>© 2026 · Sistema de Usuários</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  safe: { flex: 1, backgroundColor: '#0D1017' },
+  page: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 42 },
+  icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#931D3F', alignItems: 'center', justifyContent: 'center' },
+  star: { color: '#FFFFFF', fontSize: 25 },
+  heading: { color: '#F2F2F4', fontSize: 24, fontWeight: '400', marginTop: 14, marginBottom: 24 },
+  card: { width: '100%', maxWidth: 372, borderWidth: 1, borderColor: '#7F1837', borderRadius: 7, padding: 24 },
+  title: { color: '#F2F2F4', fontSize: 21, fontWeight: '400', marginBottom: 21 },
+  label: { color: '#E5E5E8', fontSize: 14, fontWeight: '700', marginBottom: 7 },
+  input: { height: 41, borderWidth: 1, borderColor: '#7F1837', borderRadius: 5, paddingHorizontal: 13, color: '#FFFFFF', fontSize: 14, marginBottom: 15 },
+  forgot: { color: '#A92B50', fontSize: 13, textAlign: 'right', marginTop: -3, marginBottom: 17 },
+  button: { height: 41, borderRadius: 5, backgroundColor: '#941D3E', alignItems: 'center', justifyContent: 'center' },
+  buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  secondaryBox: { width: '100%', maxWidth: 372, borderWidth: 1, borderColor: '#7F1837', borderRadius: 5, paddingVertical: 15, marginTop: 19 },
+  secondaryText: { color: '#E2E2E5', textAlign: 'center', fontSize: 13 },
+  link: { color: '#A92B50' },
+  footer: { color: '#676B76', fontSize: 12, marginTop: 24 },
 });
