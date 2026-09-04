@@ -27,6 +27,16 @@ export default function RegisterScreen() {
       return;
     }
 
+    else if (nome.trim().length === 0) {
+      console.error("Nome inválido!");
+      return;
+    }
+
+    else if (senha.trim().length !== senha.length) {
+      console.error("Senha inválida!");
+      return;
+    }
+
     if (!emailValido(email)) {
       console.error("Digite um e-mail válido!");
       return;
