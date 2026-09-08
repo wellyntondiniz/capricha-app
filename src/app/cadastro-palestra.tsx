@@ -1,6 +1,133 @@
-import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Pressable,
+} from 'react-native';
+import { useState } from 'react';
 
 export default function CadastroPalestra() {
+  const [nome, setNome] = useState('');
+
+  const validarData = (data: string) => {
+    if (data.length !== 10) {
+      return false;
+    }
+  
+    const [dia, mes, ano] = data.split('/').map(Number);
+  
+    if (!dia || !mes || !ano) {
+      return false;
+    }
+  
+    const dataInformada = new Date(ano, mes - 1, dia);
+  
+    return (
+      dataInformada.getFullYear() === ano &&
+      dataInformada.getMonth() === mes - 1 &&
+      dataInformada.getDate() === dia
+    );
+  };
+  
+  const validarHorario = (horario: string) => {
+    if (horario.length !== 5) {
+      return false;
+    }
+  
+    const [hora, minuto] = horario.split(':').map(Number);
+  
+    return (
+      hora >= 0 &&
+      hora <= 23 &&
+      minuto >= 0 &&
+      minuto <= 59
+    );
+  };
+
+  const cadastrarPalestra = async () => {
+    // COLOQUE ESTA LINHA BEM NO INÍCIO, ANTES DE TUDO
+    if (
+      !nome.trim() ||
+      !palestrante.trim() ||
+      !data.trim() ||
+      !horario.trim() ||
+      !evento.trim()
+    ) {
+      Alert.alert(
+        'Campos obrigatórios',
+        'Preencha todos os campos obrigatórios.'
+      );
+      return;
+    }
+
+    if (!validarData(data)) {
+      Alert.alert(
+        'Data inválida',
+        'Digite uma data válida no formato DD/MM/AAAA.'
+      );
+      return;
+    }
+  
+    if (!validarHorario(horario)) {
+      Alert.alert(
+        'Horário inválido',
+        'Digite um horário válido no formato HH:MM.'
+      );
+      return;
+    }
+  
+    const novaPalestra = {
+      nome: nome.trim(),
+      descricao: descricao.trim(),
+      palestrante: palestrante.trim(),
+      data: data.trim(),
+      horario: horario.trim(),
+      evento: evento.trim(),
+    };
+  
+    try {
+      const resposta = await fetch(
+        'http://localhost:8080/palestras',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(novaPalestra),
+        }
+      );
+    
+      if (!resposta.ok) {
+        throw new Error('Erro ao cadastrar palestra');
+      }
+    
+      Alert.alert(
+        'Sucesso',
+        'Palestra cadastrada com sucesso!'
+      );
+    
+      setNome('');
+      setDescricao('');
+      setPalestrante('');
+      setData('');
+      setHorario('');
+      setEvento('');
+    } catch (error) {
+      Alert.alert(
+        'Erro',
+        'Não foi possível salvar a palestra.'
+      );
+    }
+  };
+  const [descricao, setDescricao] = useState('');
+  const [palestrante, setPalestrante] = useState('');
+  const [data, setData] = useState('');
+  const [horario, setHorario] = useState('');
+  const [evento, setEvento] = useState('');
+  
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
@@ -11,6 +138,8 @@ export default function CadastroPalestra() {
           style={styles.input}
           placeholder="Digite o nome da palestra"
           placeholderTextColor="#777"
+          value={nome}
+          onChangeText={setNome}
         />
 
         <Text style={styles.label}>Descrição</Text>
@@ -18,6 +147,8 @@ export default function CadastroPalestra() {
           style={[styles.input, styles.textArea]}
           placeholder="Digite a descrição da palestra"
           placeholderTextColor="#777"
+          value={descricao}
+          onChangeText={setDescricao}
           multiline
         />
 
@@ -26,6 +157,8 @@ export default function CadastroPalestra() {
           style={styles.input}
           placeholder="Digite o nome do palestrante"
           placeholderTextColor="#777"
+          value={palestrante}
+          onChangeText={setPalestrante}
         />
 
         <View style={styles.row}>
@@ -35,6 +168,20 @@ export default function CadastroPalestra() {
               style={styles.input}
               placeholder="DD/MM/AAAA"
               placeholderTextColor="#777"
+              value={data}
+              onChangeText={(texto) => {
+                let valor = texto.replace(/\D/g, '');
+              
+                if (valor.length > 2) {
+                  valor = valor.slice(0, 2) + '/' + valor.slice(2);
+                }
+              
+                if (valor.length > 5) {
+                  valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
+                }
+              
+                setData(valor);
+              }}
             />
           </View>
 
@@ -44,6 +191,16 @@ export default function CadastroPalestra() {
               style={styles.input}
               placeholder="00:00"
               placeholderTextColor="#777"
+              value={horario}
+              onChangeText={(texto) => {
+                let valor = texto.replace(/\D/g, '');
+              
+                if (valor.length > 2) {
+                  valor = valor.slice(0, 2) + ':' + valor.slice(2, 4);
+                }
+              
+                setHorario(valor);
+              }}
             />
           </View>
         </View>
@@ -53,10 +210,15 @@ export default function CadastroPalestra() {
           style={styles.input}
           placeholder="Selecione o evento"
           placeholderTextColor="#777"
+          value={evento}
+          onChangeText={setEvento}
         />
 
-        <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Cadastrar</Text>
+        <Pressable
+          style={styles.button}
+          onPress={cadastrarPalestra}
+        >
+        <Text style={styles.buttonText}>Cadastrar</Text>
         </Pressable>
       </View>
     </ScrollView>
