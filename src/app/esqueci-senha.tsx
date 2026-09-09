@@ -1,55 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { recuperacaoSenhaService } from '@/services/recuperacaoSenhaService';
 
 export default function EsqueciSenha() {
-  const parametros = useLocalSearchParams<{ token?: string }>();
-  const [etapa, setEtapa] = useState<'email' | 'senha' | 'sucesso'>('email');
-  const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmacao, setConfirmacao] = useState('');
+  const parametros = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(typeof parametros.email === 'string' ? parametros.email : '');
   const [mensagem, setMensagem] = useState('');
   const [carregando, setCarregando] = useState(false);
-
-  useEffect(() => {
-    if (typeof parametros.token === 'string' && parametros.token.length > 0) {
-      setToken(parametros.token);
-      setEtapa('senha');
-      setMensagem('Link validado. Escolha uma nova senha.');
-    }
-  }, [parametros.token]);
 
   async function solicitar() {
     if (!email.includes('@')) return setMensagem('Informe um e-mail válido.');
     setCarregando(true); setMensagem('');
     try {
-      const resposta = await recuperacaoSenhaService.solicitar(email);
+      const resposta = await recuperacaoSenhaService.solicitar(email.trim().toLowerCase());
       setMensagem(resposta.mensagem);
+      if (resposta.desafio) router.push({ pathname: '/codigo-recuperacao', params: {
+        desafio: resposta.desafio, simulado: String(resposta.simulado), canal: 'email',
+      } });
     } catch (erro) { setMensagem(erro instanceof Error ? erro.message : 'Falha na solicitação.'); }
-    finally { setCarregando(false); }
-  }
-
-  async function redefinir() {
-    if (senha.length < 8) return setMensagem('A senha deve possuir pelo menos 8 caracteres.');
-    if (senha !== confirmacao) return setMensagem('As senhas não coincidem.');
-    setCarregando(true); setMensagem('');
-    try { await recuperacaoSenhaService.redefinir(token, senha); setEtapa('sucesso'); }
-    catch (erro) { setMensagem(erro instanceof Error ? erro.message : 'Falha ao alterar senha.'); }
     finally { setCarregando(false); }
   }
 
   return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
     <View style={s.icon}><Text style={s.star}>✦</Text></View>
-    <Text style={s.heading}>{etapa === 'email' ? 'Recuperar senha' : etapa === 'senha' ? 'Crie uma nova senha' : 'Senha alterada'}</Text>
+    <Text style={s.heading}>Recuperar senha</Text>
     <View style={s.card}>
-      {etapa === 'email' && <><Text style={s.title}>Recuperação de senha</Text><Text style={s.description}>Informe o e-mail cadastrado para iniciar a recuperação.</Text><Label>E-mail</Label><Input value={email} onChangeText={setEmail} placeholder="voce@exemplo.com" keyboardType="email-address" /><Message text={mensagem} /><Button label="Enviar instruções" loading={carregando} onPress={solicitar} /></>}
-      {etapa === 'senha' && <><Text style={s.title}>Redefinir senha</Text><Text style={s.description}>Use o token recebido e escolha uma nova senha.</Text><Label>Token de recuperação</Label><Input value={token} onChangeText={setToken} placeholder="Cole o token recebido" /><Label>Nova senha</Label><Input value={senha} onChangeText={setSenha} placeholder="Mínimo de 8 caracteres" secureTextEntry /><Label>Confirmar senha</Label><Input value={confirmacao} onChangeText={setConfirmacao} placeholder="Digite novamente" secureTextEntry /><Message text={mensagem} /><Button label="Alterar senha" loading={carregando} onPress={redefinir} /></>}
-      {etapa === 'sucesso' && <><Text style={s.success}>✓</Text><Text style={[s.title, s.center]}>Recuperação realizada com sucesso!</Text><Text style={[s.description, s.center]}>Você já pode acessar sua conta com a nova senha.</Text><Button label="Voltar para o login" loading={false} onPress={() => router.replace('/')} /></>}
+      <><Text style={s.title}>Recuperação de senha</Text><Text style={s.description}>Informe o e-mail cadastrado. Enviaremos um código de 6 dígitos válido por 10 minutos. No modo local, o código aparece no terminal da API.</Text><Label>E-mail cadastrado</Label><Input value={email} onChangeText={setEmail} placeholder="voce@exemplo.com" keyboardType="email-address" /><Message text={mensagem} /><Button label="Enviar código por e-mail" loading={carregando} onPress={solicitar} /><Pressable onPress={() => router.push('/cadastro')}><Text style={[s.back, { marginTop: 20 }]}>Ainda não tenho conta — cadastrar</Text></Pressable></>
     </View>
-    {etapa !== 'sucesso' && <Pressable style={s.backBox} onPress={() => router.back()}><Text style={s.back}>Voltar para o login</Text></Pressable>}
+    <Pressable style={s.backBox} onPress={() => router.replace('/')}><Text style={s.back}>Voltar para o login</Text></Pressable>
     <Text style={s.footer}>© 2026 · Sistema de Usuários</Text>
   </ScrollView></SafeAreaView>;
 }
