@@ -1,5 +1,6 @@
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,36 +10,54 @@ import {
 } from 'react-native';
 import { useState } from 'react';
 
+const mostrarAlerta = (titulo: string, mensagem: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${titulo}\n\n${mensagem}`);
+  } else {
+    Alert.alert(titulo, mensagem);
+  }
+};
+
 export default function CadastroPalestra() {
   const [nome, setNome] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [palestrante, setPalestrante] = useState('');
+  const [data, setData] = useState('');
+  const [horario, setHorario] = useState('');
+  const [evento, setEvento] = useState('');
 
   const validarData = (data: string) => {
     if (data.length !== 10) {
       return false;
     }
-  
+
     const [dia, mes, ano] = data.split('/').map(Number);
-  
+
     if (!dia || !mes || !ano) {
       return false;
     }
-  
+
     const dataInformada = new Date(ano, mes - 1, dia);
-  
+
     return (
       dataInformada.getFullYear() === ano &&
       dataInformada.getMonth() === mes - 1 &&
       dataInformada.getDate() === dia
     );
   };
-  
+
   const validarHorario = (horario: string) => {
     if (horario.length !== 5) {
       return false;
     }
-  
+
     const [hora, minuto] = horario.split(':').map(Number);
-  
+
+    if (hora === 0 && minuto === 0) {
+      // 00:00 não é considerado um horário válido de início de palestra
+      return false;
+    }
+
     return (
       hora >= 0 &&
       hora <= 23 &&
@@ -48,37 +67,41 @@ export default function CadastroPalestra() {
   };
 
   const cadastrarPalestra = async () => {
-    // COLOQUE ESTA LINHA BEM NO INÍCIO, ANTES DE TUDO
-    if (
-      !nome.trim() ||
-      !palestrante.trim() ||
-      !data.trim() ||
-      !horario.trim() ||
-      !evento.trim()
-    ) {
-      Alert.alert(
-        'Campos obrigatórios',
-        'Preencha todos os campos obrigatórios.'
-      );
+    if (!nome.trim()) {
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o nome da palestra.');
+      return;
+    }
+
+    if (!palestrante.trim()) {
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o palestrante.');
+      return;
+    }
+
+    if (!data.trim()) {
+      mostrarAlerta('Campo obrigatório', 'É necessário informar a data.');
+      return;
+    }
+
+    if (!horario.trim()) {
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o horário.');
+      return;
+    }
+
+    if (!evento.trim()) {
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o evento.');
       return;
     }
 
     if (!validarData(data)) {
-      Alert.alert(
-        'Data inválida',
-        'Digite uma data válida no formato DD/MM/AAAA.'
-      );
+      mostrarAlerta('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
       return;
     }
-  
+
     if (!validarHorario(horario)) {
-      Alert.alert(
-        'Horário inválido',
-        'Digite um horário válido no formato HH:MM.'
-      );
+      mostrarAlerta('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
       return;
     }
-  
+
     const novaPalestra = {
       nome: nome.trim(),
       descricao: descricao.trim(),
@@ -87,7 +110,7 @@ export default function CadastroPalestra() {
       horario: horario.trim(),
       evento: evento.trim(),
     };
-  
+
     try {
       const resposta = await fetch(
         'http://localhost:8080/palestras',
@@ -99,16 +122,23 @@ export default function CadastroPalestra() {
           body: JSON.stringify(novaPalestra),
         }
       );
-    
+
       if (!resposta.ok) {
-        throw new Error('Erro ao cadastrar palestra');
+        const mensagemErro = await resposta.text();
+
+        if (resposta.status === 409) {
+          mostrarAlerta(
+            'Conflito de agenda',
+            mensagemErro || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
+          );
+        } else {
+          mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
+        }
+        return;
       }
-    
-      Alert.alert(
-        'Sucesso',
-        'Palestra cadastrada com sucesso!'
-      );
-    
+
+      mostrarAlerta('Sucesso', 'Palestra cadastrada com sucesso!');
+
       setNome('');
       setDescricao('');
       setPalestrante('');
@@ -116,18 +146,10 @@ export default function CadastroPalestra() {
       setHorario('');
       setEvento('');
     } catch (error) {
-      Alert.alert(
-        'Erro',
-        'Não foi possível salvar a palestra.'
-      );
+      mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
     }
   };
-  const [descricao, setDescricao] = useState('');
-  const [palestrante, setPalestrante] = useState('');
-  const [data, setData] = useState('');
-  const [horario, setHorario] = useState('');
-  const [evento, setEvento] = useState('');
-  
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
@@ -171,15 +193,15 @@ export default function CadastroPalestra() {
               value={data}
               onChangeText={(texto) => {
                 let valor = texto.replace(/\D/g, '');
-              
+
                 if (valor.length > 2) {
                   valor = valor.slice(0, 2) + '/' + valor.slice(2);
                 }
-              
+
                 if (valor.length > 5) {
                   valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
                 }
-              
+
                 setData(valor);
               }}
             />
@@ -194,11 +216,11 @@ export default function CadastroPalestra() {
               value={horario}
               onChangeText={(texto) => {
                 let valor = texto.replace(/\D/g, '');
-              
+
                 if (valor.length > 2) {
                   valor = valor.slice(0, 2) + ':' + valor.slice(2, 4);
                 }
-              
+
                 setHorario(valor);
               }}
             />
@@ -218,7 +240,7 @@ export default function CadastroPalestra() {
           style={styles.button}
           onPress={cadastrarPalestra}
         >
-        <Text style={styles.buttonText}>Cadastrar</Text>
+          <Text style={styles.buttonText}>Cadastrar</Text>
         </Pressable>
       </View>
     </ScrollView>
