@@ -25,6 +25,23 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Integracao com a API de check-in
+
+Inicie a API na porta 8080 e execute o aplicativo Expo:
+
+```powershell
+npx.cmd expo start
+```
+
+Por padrao, o aplicativo usa `http://localhost:8080/api` na web/iOS e
+`http://10.0.2.2:8080/api` no emulador Android. Para um celular fisico,
+configure o endereco da maquina que executa a API:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL = "http://SEU-IP-NA-REDE:8080/api"
+npx.cmd expo start
+```
+
 ## Get a fresh project
 
 When you're ready, run:
