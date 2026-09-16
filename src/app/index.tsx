@@ -48,6 +48,11 @@ export default function LoginScreen() {
   );
 }
 
+export default function Index() {
+
+  return <CadastroPalestra />;
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0D1017' },
   page: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 42 },
