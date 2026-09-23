@@ -1,5 +1,6 @@
 import {
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useState } from 'react';
+import { Calendar } from 'react-native-calendars';
 
 const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
@@ -25,25 +27,11 @@ export default function CadastroPalestra() {
   const [data, setData] = useState('');
   const [horario, setHorario] = useState('');
   const [evento, setEvento] = useState('');
+  const [calendarioVisivel, setCalendarioVisivel] = useState(false);
 
-  const validarData = (data: string) => {
-    if (data.length !== 10) {
-      return false;
-    }
-
-    const [dia, mes, ano] = data.split('/').map(Number);
-
-    if (!dia || !mes || !ano) {
-      return false;
-    }
-
-    const dataInformada = new Date(ano, mes - 1, dia);
-
-    return (
-      dataInformada.getFullYear() === ano &&
-      dataInformada.getMonth() === mes - 1 &&
-      dataInformada.getDate() === dia
-    );
+  const converterParaISO = (dataBR: string) => {
+    const [dia, mes, ano] = dataBR.split('/');
+    return `${ano}-${mes}-${dia}`;
   };
 
   const validarHorario = (horario: string) => {
@@ -89,11 +77,6 @@ export default function CadastroPalestra() {
 
     if (!evento.trim()) {
       mostrarAlerta('Campo obrigatório', 'É necessário informar o evento.');
-      return;
-    }
-
-    if (!validarData(data)) {
-      mostrarAlerta('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
       return;
     }
 
@@ -186,25 +169,14 @@ export default function CadastroPalestra() {
         <View style={styles.row}>
           <View style={styles.half}>
             <Text style={styles.label}>Data</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#777"
-              value={data}
-              onChangeText={(texto) => {
-                let valor = texto.replace(/\D/g, '');
-
-                if (valor.length > 2) {
-                  valor = valor.slice(0, 2) + '/' + valor.slice(2);
-                }
-
-                if (valor.length > 5) {
-                  valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
-                }
-
-                setData(valor);
-              }}
-            />
+            <Pressable
+              style={styles.dateButton}
+              onPress={() => setCalendarioVisivel(true)}
+            >
+              <Text style={[styles.dateButtonText, { color: data ? '#FFFFFF' : '#777' }]}>
+                {data || 'DD/MM/AAAA'}
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.half}>
@@ -243,6 +215,49 @@ export default function CadastroPalestra() {
           <Text style={styles.buttonText}>Cadastrar</Text>
         </Pressable>
       </View>
+
+      <Modal
+        visible={calendarioVisivel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCalendarioVisivel(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Calendar
+              current={data ? converterParaISO(data) : undefined}
+              onDayPress={(dia: { dateString: string }) => {
+                const [ano, mes, diaNum] = dia.dateString.split('-');
+                setData(`${diaNum}/${mes}/${ano}`);
+                setCalendarioVisivel(false);
+              }}
+              markedDates={
+                data
+                  ? { [converterParaISO(data)]: { selected: true, selectedColor: '#A71948' } }
+                  : {}
+              }
+              theme={{
+                backgroundColor: '#101118',
+                calendarBackground: '#101118',
+                textSectionTitleColor: '#8E173D',
+                selectedDayBackgroundColor: '#A71948',
+                selectedDayTextColor: '#FFFFFF',
+                todayTextColor: '#A71948',
+                dayTextColor: '#FFFFFF',
+                textDisabledColor: '#444444',
+                monthTextColor: '#FFFFFF',
+                arrowColor: '#A71948',
+              }}
+            />
+            <Pressable
+              style={styles.modalCloseButton}
+              onPress={() => setCalendarioVisivel(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -302,6 +317,53 @@ const styles = StyleSheet.create({
 
   half: {
     flex: 1,
+  },
+
+  dateButton: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    backgroundColor: '#0D0E13',
+    justifyContent: 'center',
+  },
+
+  dateButtonText: {
+    fontSize: 15,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: '#101118',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    padding: 15,
+  },
+
+  modalCloseButton: {
+    height: 44,
+    marginTop: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   button: {
