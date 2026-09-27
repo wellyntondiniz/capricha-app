@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CadastroPalestra from './cadastro-palestra';
 
-export default function LoginScreen() {
+function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
@@ -49,7 +50,6 @@ export default function LoginScreen() {
 }
 
 export default function Index() {
-
   return <CadastroPalestra />;
 }
 

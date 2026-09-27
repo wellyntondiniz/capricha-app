@@ -1,14 +1,23 @@
+import { Evento, listarEventos } from '@/services/eventoService';
+import { PalestraApiError, salvarPalestra } from '@/services/palestraService';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Pressable,
 } from 'react-native';
-import { useState } from 'react';
+
+const paraDataHora = (data: string, horario: string): Date => {
+  const [dia, mes, ano] = data.split('/').map(Number);
+  const [hora, minuto] = horario.split(':').map(Number);
+  return new Date(ano, mes - 1, dia, hora, minuto);
+};
 
 const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
@@ -24,7 +33,15 @@ export default function CadastroPalestra() {
   const [palestrante, setPalestrante] = useState('');
   const [data, setData] = useState('');
   const [horario, setHorario] = useState('');
-  const [evento, setEvento] = useState('');
+
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [eventoSelecionado, setEventoSelecionado] = useState<Evento | null>(null);
+
+  useEffect(() => {
+    listarEventos()
+      .then(setEventos)
+      .catch(() => setEventos([]));
+  }, []);
 
   const validarData = (data: string) => {
     if (data.length !== 10) {
@@ -87,8 +104,8 @@ export default function CadastroPalestra() {
       return;
     }
 
-    if (!evento.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o evento.');
+    if (!eventoSelecionado) {
+      mostrarAlerta('Campo obrigatório', 'É necessário selecionar o evento.');
       return;
     }
 
@@ -101,41 +118,39 @@ export default function CadastroPalestra() {
       mostrarAlerta('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
       return;
     }
+    
+    if (eventoSelecionado.dataInicio) {
+  const dataHoraPalestra = paraDataHora(data, horario);
+  const inicioEvento = new Date(eventoSelecionado.dataInicio);
 
-    const novaPalestra = {
-      nome: nome.trim(),
-      descricao: descricao.trim(),
-      palestrante: palestrante.trim(),
-      data: data.trim(),
-      horario: horario.trim(),
-      evento: evento.trim(),
-    };
+  if (dataHoraPalestra < inicioEvento) {
+    mostrarAlerta(
+      'Fora do período do evento',
+      'A palestra não pode ocorrer antes do início do evento.'
+    );
+    return;
+  }
 
-    try {
-      const resposta = await fetch(
-        'http://localhost:8080/palestras',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(novaPalestra),
-        }
+  if (eventoSelecionado.dataTermino) {
+    const terminoEvento = new Date(eventoSelecionado.dataTermino);
+    if (dataHoraPalestra > terminoEvento) {
+      mostrarAlerta(
+        'Fora do período do evento',
+        'A palestra não pode ocorrer depois do término do evento.'
       );
-
-      if (!resposta.ok) {
-        const mensagemErro = await resposta.text();
-
-        if (resposta.status === 409) {
-          mostrarAlerta(
-            'Conflito de agenda',
-            mensagemErro || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
-          );
-        } else {
-          mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
-        }
-        return;
-      }
+      return;
+    }
+  }
+}
+    try {
+      await salvarPalestra({
+        nome: nome.trim(),
+        descricao: descricao.trim(),
+        palestrante: palestrante.trim(),
+        data: data.trim(),
+        horario: horario.trim(),
+        evento: { id: eventoSelecionado.id },
+      });
 
       mostrarAlerta('Sucesso', 'Palestra cadastrada com sucesso!');
 
@@ -144,9 +159,18 @@ export default function CadastroPalestra() {
       setPalestrante('');
       setData('');
       setHorario('');
-      setEvento('');
+      setEventoSelecionado(null);
     } catch (error) {
-      mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
+      const erro = error as PalestraApiError;
+
+      if (erro.status === 409) {
+        mostrarAlerta(
+          'Conflito de agenda',
+          erro.message || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
+        );
+      } else {
+        mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
+      }
     }
   };
 
@@ -228,13 +252,31 @@ export default function CadastroPalestra() {
         </View>
 
         <Text style={styles.label}>Evento</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Selecione o evento"
-          placeholderTextColor="#777"
-          value={evento}
-          onChangeText={setEvento}
-        />
+        {eventos.length === 0 ? (
+          <View style={styles.avisoBox}>
+            <Text style={styles.avisoText}>Nenhum evento cadastrado.</Text>
+            <Pressable onPress={() => router.push('/cadastro-evento')}>
+              <Text style={styles.link}>Cadastrar um evento</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.eventosWrap}>
+            {eventos.map((evento) => {
+              const selecionado = eventoSelecionado?.id === evento.id;
+              return (
+                <Pressable
+                  key={evento.id}
+                  style={[styles.chip, selecionado && styles.chipSelecionado]}
+                  onPress={() => setEventoSelecionado(evento)}
+                >
+                  <Text style={[styles.chipText, selecionado && styles.chipTextSelecionado]}>
+                    {evento.nome}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         <Pressable
           style={styles.button}
@@ -302,6 +344,54 @@ const styles = StyleSheet.create({
 
   half: {
     flex: 1,
+  },
+
+  eventosWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    borderRadius: 20,
+    backgroundColor: '#0D0E13',
+  },
+
+  chipSelecionado: {
+    backgroundColor: '#A71948',
+  },
+
+  chipText: {
+    color: '#CCCCCC',
+    fontSize: 14,
+  },
+
+  chipTextSelecionado: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+
+  avisoBox: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    borderRadius: 8,
+  },
+
+  avisoText: {
+    color: '#CCCCCC',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+
+  link: {
+    color: '#A92B50',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   button: {
