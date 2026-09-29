@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { recuperacaoSenhaService } from '@/services/recuperacaoSenhaService';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { recuperacaoSenhaService } from '@/services/recuperacaoSenhaService';
 
 export default function CodigoRecuperacao() {
   const { desafio, simulado, canal } = useLocalSearchParams<{ desafio?: string; simulado?: string; canal?: string }>();
@@ -50,9 +50,9 @@ export default function CodigoRecuperacao() {
         <TextInput accessibilityLabel="Código de 6 números" style={s.input} value={codigo} onChangeText={v => setCodigo(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code" placeholder="000000" placeholderTextColor="#8B949E" />
         {!validado && <Pressable disabled={carregando || !desafio} style={s.button} onPress={validarCodigo}>{carregando ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Validar código</Text>}</Pressable>}
         {validado && <><Text style={[s.label, {marginTop: 16}]}>Nova senha</Text>
-        <TextInput accessibilityLabel="Nova senha" style={s.input} value={senha} onChangeText={setSenha} secureTextEntry placeholder="Mínimo de 8 caracteres" placeholderTextColor="#8B949E" maxLength={128} />
+        <CampoSenha accessibilityLabel="Nova senha" value={senha} onChangeText={setSenha} placeholder="Mínimo de 8 caracteres" />
         <Text style={s.label}>Confirmar nova senha</Text>
-        <TextInput accessibilityLabel="Confirmar nova senha" style={s.input} value={confirmacao} onChangeText={setConfirmacao} secureTextEntry placeholder="Digite novamente" placeholderTextColor="#8B949E" maxLength={128} />
+        <CampoSenha accessibilityLabel="Confirmar nova senha" value={confirmacao} onChangeText={setConfirmacao} placeholder="Digite novamente" />
         {!!mensagem && <Text accessibilityLiveRegion="polite" style={s.message}>{mensagem}</Text>}
         <Pressable disabled={carregando || !desafio} style={s.button} onPress={alterar}>{carregando ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Alterar senha</Text>}</Pressable></>}
         <Pressable disabled={carregando} onPress={() => router.replace('/esqueci-senha')}><Text style={s.link}>Solicitar outro código</Text></Pressable>
@@ -61,6 +61,42 @@ export default function CodigoRecuperacao() {
     </View><Text style={s.footer}>© 2026 · Sistema de Usuários</Text>
   </ScrollView></SafeAreaView>;
 }
+type CampoSenhaProps = {
+  accessibilityLabel: string;
+  value: string;
+  onChangeText: (texto: string) => void;
+  placeholder: string;
+};
+
+// Campo de senha com botão para revelar/ocultar. Começa oculto e cada campo controla o próprio estado.
+function CampoSenha({ accessibilityLabel, value, onChangeText, placeholder }: CampoSenhaProps) {
+  const [visivel, setVisivel] = useState(false);
+  return (
+    <View style={s.senhaBox}>
+      <TextInput
+        accessibilityLabel={accessibilityLabel}
+        style={s.senhaInput}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={!visivel}
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder={placeholder}
+        placeholderTextColor="#8B949E"
+        maxLength={128}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={visivel ? 'Ocultar senha' : 'Revelar senha'}
+        onPress={() => setVisivel(v => !v)}
+        hitSlop={8}
+        style={s.senhaToggle}
+      >
+        <Text style={s.senhaToggleText}>{visivel ? 'Ocultar' : 'Mostrar'}</Text>
+      </Pressable>
+    </View>
+  );
+}
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0D1117' }, page: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#7B1B38', alignItems: 'center', justifyContent: 'center' }, star: { color: '#fff', fontSize: 25 },
@@ -68,5 +104,8 @@ const s = StyleSheet.create({
   title: { color: '#E6EDF3', fontSize: 20, marginBottom: 12 }, description: { color: '#8B949E', fontSize: 13, lineHeight: 19, marginBottom: 16 },
   label: { color: '#E6EDF3', fontWeight: '600', marginBottom: 6 }, input: { height: 41, borderWidth: 1, borderColor: '#7B1B38', borderRadius: 6, color: '#fff', paddingHorizontal: 12, marginBottom: 16 },
   button: { height: 42, backgroundColor: '#7B1B38', borderRadius: 6, alignItems: 'center', justifyContent: 'center' }, buttonText: { color: '#fff', fontWeight: '600' },
+  senhaBox: { flexDirection: 'row', alignItems: 'center', height: 41, borderWidth: 1, borderColor: '#7B1B38', borderRadius: 6, marginBottom: 16 },
+  senhaInput: { flex: 1, height: '100%', color: '#fff', paddingHorizontal: 12 },
+  senhaToggle: { paddingHorizontal: 12, height: '100%', justifyContent: 'center' }, senhaToggleText: { color: '#D98AA2', fontSize: 13, fontWeight: '600' },
   link: { color: '#D98AA2', textAlign: 'center', marginVertical: 18 }, message: { color: '#F0A7B8', marginBottom: 14 }, footer: { color: '#8B949E', fontSize: 12, marginTop: 24 },
 });
