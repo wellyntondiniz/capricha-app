@@ -1,116 +1,98 @@
 import {
-  Alert,
-  Platform,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   Pressable,
 } from 'react-native';
 import { useState } from 'react';
 
-const mostrarAlerta = (titulo: string, mensagem: string) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${titulo}\n\n${mensagem}`);
-  } else {
-    Alert.alert(titulo, mensagem);
+import { CampoFormulario } from '@/components/campo-formulario';
+import { Mensagem, MensagemFormulario } from '@/components/mensagem-formulario';
+import { MENSAGEM_CORRIJA_CAMPOS } from '@/constants/formulario';
+import { useFormulario } from '@/hooks/use-formulario';
+import { lerErroApi } from '@/services/erro-api';
+import { obrigatorio, validarData, validarHorario } from '@/utils/validacao';
+
+type Campo = 'nome' | 'descricao' | 'palestrante' | 'data' | 'horario' | 'evento';
+
+function validarCampo(campo: Campo, valores: Record<Campo, string>): string | undefined {
+  switch (campo) {
+    case 'nome':
+      return obrigatorio(valores.nome, 'Informe o nome da palestra.');
+    case 'descricao':
+      return undefined; // opcional
+    case 'palestrante':
+      return obrigatorio(valores.palestrante, 'Informe o palestrante.');
+    case 'data':
+      return validarData(valores.data);
+    case 'horario':
+      return validarHorario(valores.horario);
+    case 'evento':
+      return obrigatorio(valores.evento, 'Informe o evento.');
   }
-};
+}
+
+function mascararData(texto: string): string {
+  let valor = texto.replace(/\D/g, '');
+  if (valor.length > 2) valor = valor.slice(0, 2) + '/' + valor.slice(2);
+  if (valor.length > 5) valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
+  return valor;
+}
+
+function mascararHorario(texto: string): string {
+  let valor = texto.replace(/\D/g, '');
+  if (valor.length > 2) valor = valor.slice(0, 2) + ':' + valor.slice(2, 4);
+  return valor;
+}
 
 export default function CadastroPalestra() {
-  const [nome, setNome] = useState('');
-  const [descricao, setDescricao] = useState('');
-  const [palestrante, setPalestrante] = useState('');
-  const [data, setData] = useState('');
-  const [horario, setHorario] = useState('');
-  const [evento, setEvento] = useState('');
+  const formulario = useFormulario<Campo>(
+    { nome: '', descricao: '', palestrante: '', data: '', horario: '', evento: '' },
+    validarCampo,
+  );
+  const { valores, erros } = formulario;
+  const [enviando, setEnviando] = useState(false);
+  const [mensagem, setMensagem] = useState<Mensagem>(null);
 
-  const validarData = (data: string) => {
-    if (data.length !== 10) {
-      return false;
-    }
+  function alterar(campo: Campo, valor: string) {
+    formulario.alterar(campo, valor);
+    setMensagem(null);
+  }
 
-    const [dia, mes, ano] = data.split('/').map(Number);
-
-    if (!dia || !mes || !ano) {
-      return false;
-    }
-
-    const dataInformada = new Date(ano, mes - 1, dia);
-
-    return (
-      dataInformada.getFullYear() === ano &&
-      dataInformada.getMonth() === mes - 1 &&
-      dataInformada.getDate() === dia
-    );
-  };
-
-  const validarHorario = (horario: string) => {
-    if (horario.length !== 5) {
-      return false;
-    }
-
-    const [hora, minuto] = horario.split(':').map(Number);
-
-    if (hora === 0 && minuto === 0) {
-      // 00:00 não é considerado um horário válido de início de palestra
-      return false;
-    }
-
-    return (
-      hora >= 0 &&
-      hora <= 23 &&
-      minuto >= 0 &&
-      minuto <= 59
-    );
-  };
+  // Propriedades comuns de cada campo: valor, erro, digitação e saída do campo.
+  function campo(nome: Campo, mascara?: (texto: string) => string) {
+    return {
+      value: valores[nome],
+      erro: erros[nome],
+      onChangeText: (texto: string) => alterar(nome, mascara ? mascara(texto) : texto),
+      onBlur: () => formulario.sair(nome),
+      style: styles.input,
+      estiloRotulo: styles.label,
+      estiloContainer: styles.campo,
+    };
+  }
 
   const cadastrarPalestra = async () => {
-    if (!nome.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o nome da palestra.');
-      return;
-    }
+    if (enviando) return;
+    setMensagem(null);
 
-    if (!palestrante.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o palestrante.');
-      return;
-    }
-
-    if (!data.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar a data.');
-      return;
-    }
-
-    if (!horario.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o horário.');
-      return;
-    }
-
-    if (!evento.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o evento.');
-      return;
-    }
-
-    if (!validarData(data)) {
-      mostrarAlerta('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
-      return;
-    }
-
-    if (!validarHorario(horario)) {
-      mostrarAlerta('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
+    if (!formulario.validarCampos()) {
+      setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
       return;
     }
 
     const novaPalestra = {
-      nome: nome.trim(),
-      descricao: descricao.trim(),
-      palestrante: palestrante.trim(),
-      data: data.trim(),
-      horario: horario.trim(),
-      evento: evento.trim(),
+      nome: valores.nome.trim(),
+      descricao: valores.descricao.trim(),
+      palestrante: valores.palestrante.trim(),
+      data: valores.data.trim(),
+      horario: valores.horario.trim(),
+      evento: valores.evento.trim(),
     };
 
+    setEnviando(true);
     try {
       const resposta = await fetch(
         'http://localhost:8080/palestras',
@@ -124,29 +106,24 @@ export default function CadastroPalestra() {
       );
 
       if (!resposta.ok) {
-        const mensagemErro = await resposta.text();
-
-        if (resposta.status === 409) {
-          mostrarAlerta(
-            'Conflito de agenda',
-            mensagemErro || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
-          );
+        const padrao = resposta.status === 409
+          ? 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
+          : 'Não foi possível salvar a palestra.';
+        const erro = await lerErroApi(resposta, padrao);
+        if (formulario.definirErros(erro.campos)) {
+          setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
         } else {
-          mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
+          setMensagem({ texto: erro.message, tipo: 'erro' });
         }
         return;
       }
 
-      mostrarAlerta('Sucesso', 'Palestra cadastrada com sucesso!');
-
-      setNome('');
-      setDescricao('');
-      setPalestrante('');
-      setData('');
-      setHorario('');
-      setEvento('');
-    } catch (error) {
-      mostrarAlerta('Erro', 'Não foi possível salvar a palestra.');
+      formulario.limpar();
+      setMensagem({ texto: 'Palestra cadastrada com sucesso!', tipo: 'sucesso' });
+    } catch {
+      setMensagem({ texto: 'Não foi possível conectar ao servidor.', tipo: 'erro' });
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -155,92 +132,64 @@ export default function CadastroPalestra() {
       <View style={styles.card}>
         <Text style={styles.title}>Cadastro de palestra</Text>
 
-        <Text style={styles.label}>Nome da palestra</Text>
-        <TextInput
-          style={styles.input}
+        <CampoFormulario
+          rotulo="Nome da palestra"
           placeholder="Digite o nome da palestra"
-          placeholderTextColor="#777"
-          value={nome}
-          onChangeText={setNome}
+          {...campo('nome')}
         />
 
-        <Text style={styles.label}>Descrição</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
+        <CampoFormulario
+          rotulo="Descrição"
           placeholder="Digite a descrição da palestra"
-          placeholderTextColor="#777"
-          value={descricao}
-          onChangeText={setDescricao}
           multiline
+          {...campo('descricao')}
+          style={[styles.input, styles.textArea]}
         />
 
-        <Text style={styles.label}>Palestrante</Text>
-        <TextInput
-          style={styles.input}
+        <CampoFormulario
+          rotulo="Palestrante"
           placeholder="Digite o nome do palestrante"
-          placeholderTextColor="#777"
-          value={palestrante}
-          onChangeText={setPalestrante}
+          {...campo('palestrante')}
         />
 
         <View style={styles.row}>
-          <View style={styles.half}>
-            <Text style={styles.label}>Data</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#777"
-              value={data}
-              onChangeText={(texto) => {
-                let valor = texto.replace(/\D/g, '');
+          <CampoFormulario
+            rotulo="Data"
+            placeholder="DD/MM/AAAA"
+            keyboardType="number-pad"
+            {...campo('data', mascararData)}
+            estiloContainer={styles.half}
+          />
 
-                if (valor.length > 2) {
-                  valor = valor.slice(0, 2) + '/' + valor.slice(2);
-                }
-
-                if (valor.length > 5) {
-                  valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
-                }
-
-                setData(valor);
-              }}
-            />
-          </View>
-
-          <View style={styles.half}>
-            <Text style={styles.label}>Horário</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="00:00"
-              placeholderTextColor="#777"
-              value={horario}
-              onChangeText={(texto) => {
-                let valor = texto.replace(/\D/g, '');
-
-                if (valor.length > 2) {
-                  valor = valor.slice(0, 2) + ':' + valor.slice(2, 4);
-                }
-
-                setHorario(valor);
-              }}
-            />
-          </View>
+          <CampoFormulario
+            rotulo="Horário"
+            placeholder="00:00"
+            keyboardType="number-pad"
+            {...campo('horario', mascararHorario)}
+            estiloContainer={styles.half}
+          />
         </View>
 
-        <Text style={styles.label}>Evento</Text>
-        <TextInput
-          style={styles.input}
+        <CampoFormulario
+          rotulo="Evento"
           placeholder="Selecione o evento"
-          placeholderTextColor="#777"
-          value={evento}
-          onChangeText={setEvento}
+          {...campo('evento')}
         />
 
+        <View style={styles.mensagem}>
+          <MensagemFormulario mensagem={mensagem} />
+        </View>
+
         <Pressable
-          style={styles.button}
+          style={[styles.button, enviando && styles.buttonDisabled]}
           onPress={cadastrarPalestra}
+          disabled={enviando}
         >
-          <Text style={styles.buttonText}>Cadastrar</Text>
+          {enviando ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>Cadastrar</Text>
+          )}
         </Pressable>
       </View>
     </ScrollView>
@@ -270,6 +219,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  campo: {
+    marginBottom: 0,
+  },
+
   label: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -280,7 +233,6 @@ const styles = StyleSheet.create({
 
   input: {
     height: 50,
-    borderWidth: 1,
     borderColor: '#8E173D',
     borderRadius: 8,
     paddingHorizontal: 15,
@@ -302,15 +254,24 @@ const styles = StyleSheet.create({
 
   half: {
     flex: 1,
+    marginBottom: 0,
+  },
+
+  mensagem: {
+    marginTop: 20,
   },
 
   button: {
     height: 52,
-    marginTop: 30,
+    marginTop: 10,
     borderRadius: 8,
     backgroundColor: '#A71948',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
 
   buttonText: {

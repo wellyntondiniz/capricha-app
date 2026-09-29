@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { ErroApi, lerErroApi } from './erro-api';
+
 function urlBase(): string {
   const manual = process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl as string | undefined;
   if (manual) return manual.replace(/\/$/, '');
@@ -16,11 +18,11 @@ async function post(path: string, body: object) {
     resposta = await fetch(`${urlBase()}/auth/email${path}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
-  } catch { throw new Error(`Não foi possível conectar à API em ${urlBase()}.`); }
+  } catch { throw new ErroApi(0, `Não foi possível conectar à API em ${urlBase()}.`); }
+  if (!resposta.ok) throw await lerErroApi(resposta, 'Não foi possível concluir a recuperação.');
   const texto = await resposta.text();
   let dados: any = {};
   try { dados = texto ? JSON.parse(texto) : {}; } catch { dados = {}; }
-  if (!resposta.ok) throw new Error(dados.mensagem ?? 'Não foi possível concluir a recuperação.');
   return dados as { mensagem: string; desafio?: string; simulado?: boolean };
 }
 

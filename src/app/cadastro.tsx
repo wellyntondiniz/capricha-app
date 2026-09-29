@@ -1,74 +1,88 @@
 import { useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CampoFormulario } from '@/components/campo-formulario';
+import { Mensagem, MensagemFormulario } from '@/components/mensagem-formulario';
+import { MENSAGEM_CORRIJA_CAMPOS } from '@/constants/formulario';
+import { useFormulario } from '@/hooks/use-formulario';
+import { ErroApi } from '@/services/erro-api';
 import { salvarUsuario } from '@/services/usuarioService';
+import {
+  obrigatorio,
+  validarConfirmacaoSenha,
+  validarEmail,
+  validarSenha,
+} from '@/utils/validacao';
+
+type Campo = 'nome' | 'email' | 'senha' | 'confirmarSenha';
+
+function validarCampo(campo: Campo, valores: Record<Campo, string>): string | undefined {
+  switch (campo) {
+    case 'nome':
+      if (valores.nome.trim().length > 100) return 'O nome deve ter no máximo 100 caracteres.';
+      return obrigatorio(valores.nome, 'Informe o nome de usuário.');
+    case 'email':
+      return validarEmail(valores.email);
+    case 'senha':
+      return validarSenha(valores.senha);
+    case 'confirmarSenha':
+      return validarConfirmacaoSenha(valores.confirmarSenha, valores.senha);
+  }
+}
 
 export default function RegisterScreen() {
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const formulario = useFormulario<Campo>(
+    { nome: '', email: '', senha: '', confirmarSenha: '' },
+    validarCampo,
+    { senha: ['confirmarSenha'] },
+  );
+  const { valores, erros } = formulario;
+  const [enviando, setEnviando] = useState(false);
+  const [mensagem, setMensagem] = useState<Mensagem>(null);
 
-  function emailValido(email: string): boolean {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  function alterar(campo: Campo, valor: string) {
+    formulario.alterar(campo, valor);
+    setMensagem(null);
   }
 
   async function handleCadastro() {
-    if (!nome || !email || !senha || !confirmarSenha) {
-      console.error("Preencha todos os campos!");
+    if (enviando) return;
+    setMensagem(null);
+
+    if (!formulario.validarCampos()) {
+      setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
       return;
     }
 
-    else if (nome.trim().length === 0) {
-      console.error("Nome inválido!");
-      return;
-    }
-
-    else if (senha.trim().length !== senha.length) {
-      console.error("Senha inválida!");
-      return;
-    }
-
-    if (!emailValido(email)) {
-      console.error("Digite um e-mail válido!");
-      return;
-    }
-
-    if (senha !== confirmarSenha) {
-      console.error("Erro: as senhas não coincidem!");
-      return;
-    }
-
+    setEnviando(true);
     try {
-      const usuario = await salvarUsuario({
-        nome,
-        email,
-        senha,
+      await salvarUsuario({
+        nome: valores.nome.trim(),
+        email: valores.email.trim(),
+        senha: valores.senha,
         ativo: true,
       });
 
-      console.info("Sucesso: usuario cadastrado com sucesso!");
-
-      setNome('');
-      setEmail('');
-      setSenha('');
-      setConfirmarSenha('');
+      formulario.limpar();
+      setMensagem({ texto: 'Usuário cadastrado com sucesso!', tipo: 'sucesso' });
     } catch (error) {
-      console.error(error);
-
-      if (error instanceof Error) {
-        Alert.alert('Erro', error.message);
+      if (error instanceof ErroApi && formulario.definirErros(error.campos)) {
+        setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
       } else {
-        Alert.alert('Erro', 'Não foi possível cadastrar o usuário.');
+        setMensagem({
+          texto: error instanceof Error ? error.message : 'Não foi possível cadastrar o usuário.',
+          tipo: 'erro',
+        });
       }
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -92,74 +106,48 @@ export default function RegisterScreen() {
             Cadastro de usuário
           </Text>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Nome de usuário
-            </Text>
+          <CampoFormulario
+            rotulo="Nome de usuário"
+            erro={erros.nome}
+            dica="Use um nome único para sua conta."
+            value={valores.nome}
+            onChangeText={(valor) => alterar('nome', valor)}
+            onBlur={() => formulario.sair('nome')}
+            placeholder="ex: joao_silva"
+            autoCapitalize="none"
+          />
 
-            <TextInput
-              style={styles.input}
-              value={nome}
-              onChangeText={setNome}
-              placeholder="ex: joao_silva"
-              placeholderTextColor="#8B949E"
-              autoCapitalize="none"
-            />
+          <CampoFormulario
+            rotulo="E-mail"
+            erro={erros.email}
+            value={valores.email}
+            onChangeText={(valor) => alterar('email', valor)}
+            onBlur={() => formulario.sair('email')}
+            placeholder="voce@exemplo.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-            <Text style={styles.hint}>
-              Use um nome único para sua conta.
-            </Text>
-          </View>
+          <CampoFormulario
+            rotulo="Senha"
+            erro={erros.senha}
+            dica="Sua senha deve possuir pelo menos 8 caracteres."
+            value={valores.senha}
+            onChangeText={(valor) => alterar('senha', valor)}
+            onBlur={() => formulario.sair('senha')}
+            placeholder="Digite sua senha"
+            secureTextEntry
+          />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              E-mail
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="voce@exemplo.com"
-              placeholderTextColor="#8B949E"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Senha
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              value={senha}
-              onChangeText={setSenha}
-              placeholder="Digite sua senha"
-              placeholderTextColor="#8B949E"
-              secureTextEntry
-            />
-
-            <Text style={styles.hint}>
-              Sua senha deve possuir pelo menos 8 caracteres.
-            </Text>
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Confirmar senha
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              value={confirmarSenha}
-              onChangeText={setConfirmarSenha}
-              placeholder="Digite sua senha novamente"
-              placeholderTextColor="#8B949E"
-              secureTextEntry
-            />
-          </View>
+          <CampoFormulario
+            rotulo="Confirmar senha"
+            erro={erros.confirmarSenha}
+            value={valores.confirmarSenha}
+            onChangeText={(valor) => alterar('confirmarSenha', valor)}
+            onBlur={() => formulario.sair('confirmarSenha')}
+            placeholder="Digite sua senha novamente"
+            secureTextEntry
+          />
 
           <Text style={styles.terms}>
             Ao criar sua conta, você concorda com nossos{' '}
@@ -173,13 +161,20 @@ export default function RegisterScreen() {
             .
           </Text>
 
+          <MensagemFormulario mensagem={mensagem} />
+
           <Pressable
-            style={styles.button}
+            style={[styles.button, enviando && styles.buttonDisabled]}
             onPress={handleCadastro}
+            disabled={enviando}
           >
-            <Text style={styles.buttonText}>
-              Criar conta
-            </Text>
+            {enviando ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>
+                Criar conta
+              </Text>
+            )}
           </Pressable>
 
         </View>
@@ -269,39 +264,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
-  field: {
-    marginBottom: 16,
-  },
-
-  label: {
-    marginBottom: 6,
-    color: '#E6EDF3',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  input: {
-    width: '100%',
-    height: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-
-    backgroundColor: '#0D1117',
-    color: '#E6EDF3',
-
-    borderWidth: 1,
-    borderColor: '#7B1B38',
-    borderRadius: 6,
-
-    fontSize: 14,
-  },
-
-  hint: {
-    marginTop: 5,
-    color: '#8B949E',
-    fontSize: 12,
-  },
-
   terms: {
     marginVertical: 18,
     color: '#8B949E',
@@ -320,6 +282,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#7B1B38',
     borderRadius: 6,
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
 
   buttonText: {
