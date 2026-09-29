@@ -18,7 +18,7 @@ export async function listar(): Promise<Participacao[]> {
 }
 
 export async function listarPorEvento(eventoId: number): Promise<Participacao[]> {
-  const res = await fetch(`${URL}/${eventoId}/byUsuario`);
+  const res = await fetch(`${URL}/${eventoId}/byEvento`);
   if (!res.ok) throw new Error('Erro ao listar participações do evento');
   return res.json();
 }
