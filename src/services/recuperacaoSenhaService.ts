@@ -20,7 +20,12 @@ async function post(path: string, body: object) {
   const texto = await resposta.text();
   let dados: any = {};
   try { dados = texto ? JSON.parse(texto) : {}; } catch { dados = {}; }
-  if (!resposta.ok) throw new Error(dados.mensagem ?? 'Não foi possível concluir a recuperação.');
+  if (!resposta.ok) {
+    const padrao = resposta.status === 429 ? 'O limite de tentativas foi atingido. Tente novamente mais tarde.'
+      : resposta.status >= 500 ? 'O servidor teve um problema. Tente novamente em instantes.'
+      : 'Não foi possível concluir a recuperação.';
+    throw new Error(dados.mensagem ?? padrao);
+  }
   return dados as { mensagem: string; desafio?: string; simulado?: boolean };
 }
 
