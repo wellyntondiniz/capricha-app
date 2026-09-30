@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { salvarUsuario } from '@/services/usuarioService';
 
@@ -16,6 +17,8 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
 
   function emailValido(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -132,14 +135,31 @@ export default function RegisterScreen() {
               Senha
             </Text>
 
-            <TextInput
-              style={styles.input}
-              value={senha}
-              onChangeText={setSenha}
-              placeholder="Digite sua senha"
-              placeholderTextColor="#8B949E"
-              secureTextEntry
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={senha}
+                onChangeText={setSenha}
+                placeholder="Digite sua senha"
+                placeholderTextColor="#8B949E"
+                secureTextEntry={!mostrarSenha}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Pressable
+                style={styles.passwordToggle}
+                onPress={() => setMostrarSenha((visivel) => !visivel)}
+                accessibilityRole="button"
+                accessibilityLabel={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#8B949E"
+                />
+              </Pressable>
+            </View>
 
             <Text style={styles.hint}>
               Sua senha deve possuir pelo menos 8 caracteres.
@@ -151,14 +171,31 @@ export default function RegisterScreen() {
               Confirmar senha
             </Text>
 
-            <TextInput
-              style={styles.input}
-              value={confirmarSenha}
-              onChangeText={setConfirmarSenha}
-              placeholder="Digite sua senha novamente"
-              placeholderTextColor="#8B949E"
-              secureTextEntry
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={confirmarSenha}
+                onChangeText={setConfirmarSenha}
+                placeholder="Digite sua senha novamente"
+                placeholderTextColor="#8B949E"
+                secureTextEntry={!mostrarConfirmarSenha}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Pressable
+                style={styles.passwordToggle}
+                onPress={() => setMostrarConfirmarSenha((visivel) => !visivel)}
+                accessibilityRole="button"
+                accessibilityLabel={mostrarConfirmarSenha ? 'Ocultar senha de confirmação' : 'Mostrar senha de confirmação'}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={mostrarConfirmarSenha ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#8B949E"
+                />
+              </Pressable>
+            </View>
           </View>
 
           <Text style={styles.terms}>
@@ -296,6 +333,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+
+  inputContainer: {
+    width: '100%',
+    height: 40,
+    paddingHorizontal: 12,
+    backgroundColor: '#0D1117',
+    borderWidth: 1,
+    borderColor: '#7B1B38',
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  passwordInput: {
+    flex: 1,
+    color: '#E6EDF3',
+    fontSize: 14,
+  },
+
+  passwordToggle: {
+    minWidth: 28,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   hint: {
     marginTop: 5,
     color: '#8B949E',
