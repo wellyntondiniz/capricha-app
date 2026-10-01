@@ -33,7 +33,8 @@ export default function LoginScreen() {
             <Text style={styles.forgot}>Esqueceu sua senha?</Text>
           </Pressable>
 
-          <Pressable style={styles.button}>
+          {/* Ainda não há login: por enquanto só leva para a Home */}
+          <Pressable style={styles.button} onPress={() => router.replace('/home')}>
             <Text style={styles.buttonText}>Entrar</Text>
           </Pressable>
         </View>
@@ -46,11 +47,6 @@ export default function LoginScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-export default function Index() {
-
-  return <CadastroPalestra />;
 }
 
 const styles = StyleSheet.create({
