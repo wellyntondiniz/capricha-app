@@ -32,6 +32,39 @@ const paraIso = (data: string, hora: string): string | undefined => {
   return `${ano}-${mes}-${dia}T${horaFinal}:00`;
 };
 
+const paraDataHora = (data: string, horario: string): Date => {
+  const [dia, mes, ano] = data.split('/').map(Number);
+  const [hora, minuto] = horario.split(':').map(Number);
+  return new Date(ano, mes - 1, dia, hora, minuto);
+};
+
+const dataValida = (data: string): boolean => {
+  if (data.length !== 10) return false;
+
+  const [dia, mes, ano] = data.split('/').map(Number);
+  if (!dia || !mes || !ano) return false;
+
+  const d = new Date(ano, mes - 1, dia);
+  return (
+    d.getFullYear() === ano &&
+    d.getMonth() === mes - 1 &&
+    d.getDate() === dia
+  );
+};
+
+const horaValida = (horario: string): boolean => {
+  if (horario.length !== 5) return false;
+
+  const [hora, minuto] = horario.split(':').map(Number);
+  return hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59;
+};
+
+const agoraSemSegundos = (): Date => {
+  const agora = new Date();
+  agora.setSeconds(0, 0);
+  return agora;
+};
+
 export default function CadastroEvento() {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -57,6 +90,65 @@ export default function CadastroEvento() {
     if (!nome.trim()) {
       mostrarAlerta('Campo obrigatório', 'É necessário informar o nome do evento.');
       return;
+    }
+
+    const temInicio = dataInicio.trim() !== '' || horaInicio.trim() !== '';
+    const temTermino = dataTermino.trim() !== '' || horaTermino.trim() !== '';
+
+    let inicio: Date | null = null;
+
+    if (temInicio) {
+      if (!dataValida(dataInicio)) {
+        mostrarAlerta('Data de início inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
+        return;
+      }
+
+      if (!horaValida(horaInicio)) {
+        mostrarAlerta('Horário de início inválido', 'Digite um horário válido no formato HH:MM.');
+        return;
+      }
+
+      inicio = paraDataHora(dataInicio, horaInicio);
+
+      if (inicio < agoraSemSegundos()) {
+        mostrarAlerta(
+          'Início no passado',
+          'O início do evento não pode ser em uma data e horário que já passaram.'
+        );
+        return;
+      }
+    }
+
+    if (temTermino) {
+      if (!inicio) {
+        mostrarAlerta('Início obrigatório', 'Para informar o término, informe também o início do evento.');
+        return;
+      }
+
+      if (!dataValida(dataTermino)) {
+        mostrarAlerta('Data de término inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
+        return;
+      }
+
+      if (!horaValida(horaTermino)) {
+        mostrarAlerta('Horário de término inválido', 'Digite um horário válido no formato HH:MM.');
+        return;
+      }
+
+      const termino = paraDataHora(dataTermino, horaTermino);
+
+      if (termino.getTime() === inicio.getTime()) {
+        mostrarAlerta(
+          'Horário inválido',
+          'O início e o término do evento não podem ser no mesmo horário.'
+        );
+        return;
+      }
+
+      if (termino < inicio) {
+        mostrarAlerta('Horário inválido', 'O término não pode ser anterior ao início do evento.');
+        return;
+      }
     }
 
     try {

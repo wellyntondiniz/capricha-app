@@ -19,6 +19,12 @@ const paraDataHora = (data: string, horario: string): Date => {
   return new Date(ano, mes - 1, dia, hora, minuto);
 };
 
+const agoraSemSegundos = (): Date => {
+  const agora = new Date();
+  agora.setSeconds(0, 0);
+  return agora;
+};
+
 const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
     window.alert(`${titulo}\n\n${mensagem}`);
@@ -118,30 +124,40 @@ export default function CadastroPalestra() {
       mostrarAlerta('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
       return;
     }
-    
-    if (eventoSelecionado.dataInicio) {
-  const dataHoraPalestra = paraDataHora(data, horario);
-  const inicioEvento = new Date(eventoSelecionado.dataInicio);
 
-  if (dataHoraPalestra < inicioEvento) {
-    mostrarAlerta(
-      'Fora do período do evento',
-      'A palestra não pode ocorrer antes do início do evento.'
-    );
-    return;
-  }
+    const dataHoraPalestra = paraDataHora(data, horario);
 
-  if (eventoSelecionado.dataTermino) {
-    const terminoEvento = new Date(eventoSelecionado.dataTermino);
-    if (dataHoraPalestra > terminoEvento) {
+    if (dataHoraPalestra < agoraSemSegundos()) {
       mostrarAlerta(
-        'Fora do período do evento',
-        'A palestra não pode ocorrer depois do término do evento.'
+        'Horário inválido',
+        'A palestra não pode ser cadastrada em uma data e horário que já passaram.'
       );
       return;
     }
-  }
-}
+
+    if (eventoSelecionado.dataInicio) {
+      const inicioEvento = new Date(eventoSelecionado.dataInicio);
+
+      if (dataHoraPalestra < inicioEvento) {
+        mostrarAlerta(
+          'Fora do período do evento',
+          'A palestra não pode ocorrer antes do início do evento.'
+        );
+        return;
+      }
+
+      if (eventoSelecionado.dataTermino) {
+        const terminoEvento = new Date(eventoSelecionado.dataTermino);
+        if (dataHoraPalestra > terminoEvento) {
+          mostrarAlerta(
+            'Fora do período do evento',
+            'A palestra não pode ocorrer depois do término do evento.'
+          );
+          return;
+        }
+      }
+    }
+
     try {
       await salvarPalestra({
         nome: nome.trim(),
