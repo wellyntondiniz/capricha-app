@@ -6,6 +6,9 @@ export type Pergunta = {
     enunciado?: string;
     alternativas?: Alternativa[];
     ativo?: boolean;
+    palestra?: {
+      id: number;
+    };
 }
 
 const URL = `${BASE_URL}/pergunta`;

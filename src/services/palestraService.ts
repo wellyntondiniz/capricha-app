@@ -10,7 +10,7 @@ export type Palestra = {
     perguntas?: Pergunta[];
 }
 
-const URL = `${BASE_URL}/palestra`;
+const URL = `${BASE_URL}/palestras`;
 
 export async function cadastrarPalestra(palestra: Palestra): Promise<Palestra> {
   const res = await fetch(URL, {
@@ -34,20 +34,13 @@ export async function listarPalestras(): Promise<Palestra[]> {
   return res.json();
 }
 
-export async function adicionarPergunta(
-  id: number,
-  pergunta: Pergunta
-): Promise<Pergunta> {
-  const res = await fetch(`${URL}/${id}/perguntas`, {
+export async function adicionarPergunta(id: number, pergunta: Omit<Pergunta, 'id'>): Promise<Pergunta> {
+  const res = await fetch(`${URL}/${id}/add-pergunta`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(pergunta),
   });
-
   if (!res.ok) throw new Error('Erro ao adicionar pergunta');
-
   return res.json();
 }
 

@@ -4,6 +4,9 @@ export type Alternativa = {
     id?: number;
     texto?: string;
     correta?: boolean;
+    pergunta?: {
+      id: number;
+    };
 }
 
 const URL = `${BASE_URL}/alternativa`;
@@ -27,7 +30,19 @@ export async function salvarAlternativa(
     body: JSON.stringify(alternativa),
   });
 
-  if (!res.ok) throw new Error('Erro ao salvar alternativa');
+  if (!res.ok) {
+    const erro = await res.text();
+
+    console.error('Erro retornado pela API:', {
+      status: res.status,
+      statusText: res.statusText,
+      body: erro,
+    });
+
+    throw new Error(
+      `Erro ao salvar alternativa (${res.status}): ${erro}`
+    );
+  }
 
   return res.json();
 }
