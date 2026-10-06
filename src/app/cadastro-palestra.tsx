@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 
 import {
   Alert,
+  Modal,
   Image,
   Platform,
   Pressable,
@@ -20,6 +21,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useState } from 'react';
+import { Calendar } from 'react-native-calendars';
 
 const paraDataHora = (data: string, horario: string): Date => {
   const [dia, mes, ano] = data.split('/').map(Number);
@@ -52,6 +55,12 @@ export default function CadastroPalestra() {
   const [palestrante, setPalestrante] = useState('');
   const [data, setData] = useState('');
   const [horario, setHorario] = useState('');
+  const [evento, setEvento] = useState('');
+  const [calendarioVisivel, setCalendarioVisivel] = useState(false);
+
+  const converterParaISO = (dataBR: string) => {
+    const [dia, mes, ano] = dataBR.split('/');
+    return `${ano}-${mes}-${dia}`;
 
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [eventoSelecionado, setEventoSelecionado] =
@@ -357,6 +366,15 @@ export default function CadastroPalestra() {
         <View style={styles.row}>
 
           <View style={styles.half}>
+            <Text style={styles.label}>Data</Text>
+            <Pressable
+              style={styles.dateButton}
+              onPress={() => setCalendarioVisivel(true)}
+            >
+              <Text style={[styles.dateButtonText, { color: data ? '#FFFFFF' : '#777' }]}>
+                {data || 'DD/MM/AAAA'}
+              </Text>
+            </Pressable>
 
             <Text style={styles.label}>
               Data
@@ -549,6 +567,48 @@ export default function CadastroPalestra() {
 
       </View>
 
+      <Modal
+        visible={calendarioVisivel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCalendarioVisivel(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Calendar
+              current={data ? converterParaISO(data) : undefined}
+              onDayPress={(dia: { dateString: string }) => {
+                const [ano, mes, diaNum] = dia.dateString.split('-');
+                setData(`${diaNum}/${mes}/${ano}`);
+                setCalendarioVisivel(false);
+              }}
+              markedDates={
+                data
+                  ? { [converterParaISO(data)]: { selected: true, selectedColor: '#A71948' } }
+                  : {}
+              }
+              theme={{
+                backgroundColor: '#101118',
+                calendarBackground: '#101118',
+                textSectionTitleColor: '#8E173D',
+                selectedDayBackgroundColor: '#A71948',
+                selectedDayTextColor: '#FFFFFF',
+                todayTextColor: '#A71948',
+                dayTextColor: '#FFFFFF',
+                textDisabledColor: '#444444',
+                monthTextColor: '#FFFFFF',
+                arrowColor: '#A71948',
+              }}
+            />
+            <Pressable
+              style={styles.modalCloseButton}
+              onPress={() => setCalendarioVisivel(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -611,6 +671,50 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  dateButton: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    backgroundColor: '#0D0E13',
+    justifyContent: 'center',
+  },
+
+  dateButtonText: {
+    fontSize: 15,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: '#101118',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    padding: 15,
+  },
+
+  modalCloseButton: {
+    height: 44,
+    marginTop: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
   selecionarImagem: {
     height: 52,
     borderWidth: 1,
