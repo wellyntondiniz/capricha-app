@@ -30,6 +30,12 @@ export default function AppTabs() {
           <TabTrigger name="cadastro" href="/cadastro" asChild>
             <TabButton>Cadastro</TabButton>
           </TabTrigger>
+          <TabTrigger name="home_perfil" href="/home_perfil" asChild>
+            <TabButton>Perfil</TabButton>
+          </TabTrigger>
+          <TabTrigger name="home_eventos" href="/home_eventos" asChild>
+            <TabButton>Eventos</TabButton>
+          </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>
