@@ -21,7 +21,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useState } from 'react';
 import { Calendar } from 'react-native-calendars';
 
 const paraDataHora = (data: string, horario: string): Date => {
@@ -61,6 +60,7 @@ export default function CadastroPalestra() {
   const converterParaISO = (dataBR: string) => {
     const [dia, mes, ano] = dataBR.split('/');
     return `${ano}-${mes}-${dia}`;
+  };
 
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [eventoSelecionado, setEventoSelecionado] =
@@ -715,6 +715,8 @@ const styles = StyleSheet.create({
   modalCloseButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
+  },
+
   selecionarImagem: {
     height: 52,
     borderWidth: 1,
