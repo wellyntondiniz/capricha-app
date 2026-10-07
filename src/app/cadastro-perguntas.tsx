@@ -1,7 +1,8 @@
-import { adicionarPergunta } from '@/services/palestraService';
+import { adicionarPergunta, listarPalestras, Palestra } from '@/services/palestraService';
 import { erro, sucesso } from '@/utils/notify';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+    Modal,
     SafeAreaView,
     StyleSheet,
     Text,
@@ -10,13 +11,36 @@ import {
     View
 } from 'react-native';
 
-const PALESTRA_ID = 1;
-
 export default function CadastroPerguntas() {
     const [pergunta, setPergunta] = useState('');
     const [alternativas, setAlternativas] = useState(['', '', '', '']);
-    const [correta, setCorreta] = useState<number | null>(null);
+    const [corretas, setCorretas] = useState<number[]>([]);
     const [salvando, setSalvando] = useState(false);
+
+    const [palestras, setPalestras] = useState<Palestra[]>([]);
+    const [palestraSelecionada, setPalestraSelecionada] =
+        useState<Palestra | null>(null);
+
+    const [modalPalestras, setModalPalestras] = useState(false);
+    const [carregandoPalestras, setCarregandoPalestras] = useState(true);
+
+    useEffect(() => {
+        carregarPalestras();
+    }, []);
+
+    const carregarPalestras = async () => {
+        try {
+            setCarregandoPalestras(true);
+
+            const lista = await listarPalestras();
+
+            setPalestras(lista);
+        } catch (error) {
+            erro('Erro', 'Não foi possível carregar as palestras.');
+        } finally {
+            setCarregandoPalestras(false);
+        }
+    };
 
     const atualizarAlternativa = (texto: string, index: number) => {
         const novasAlternativas = [...alternativas];
@@ -27,10 +51,25 @@ export default function CadastroPerguntas() {
     const limparFormulario = () => {
         setPergunta('');
         setAlternativas(['', '', '', '']);
-        setCorreta(null);
+        setCorretas([]);
     };
 
+    const alternarCorreta = (index: number) => {
+    setCorretas((atuais) => {
+        if (atuais.includes(index)) {
+            return atuais.filter((i) => i !== index);
+        }
+
+        return [...atuais, index];
+    });
+};
+
     const cadastrarPergunta = async () => {
+        if (!palestraSelecionada || palestraSelecionada.id === undefined) {
+            erro('Atenção', 'Selecione uma palestra válida.');
+            return;
+        }
+        
         if (!pergunta.trim()) {
             erro('Atenção', 'Digite o enunciado da pergunta.');
             return;
@@ -41,22 +80,22 @@ export default function CadastroPerguntas() {
             return;
         }
 
-        if (correta === null) {
-            erro('Atenção', 'Selecione qual alternativa é a correta.');
+        if (corretas.length === 0) {
+            erro('Atenção', 'Selecione pelo menos uma alternativa correta.');
             return;
         }
 
         try {
             setSalvando(true);
-            const perguntaSalva = await adicionarPergunta(PALESTRA_ID, {
+            const perguntaSalva = await adicionarPergunta(palestraSelecionada.id, {
                 enunciado: pergunta.trim(),
                     ativo: true,
                     palestra: {
-                        id: PALESTRA_ID,
+                        id: palestraSelecionada.id,
                     },
                     alternativas: alternativas.map((texto, index) => ({
                         texto: texto.trim(),
-                        correta: index === correta,
+                        correta: corretas.includes(index),
                     })),
             });
 
@@ -92,6 +131,30 @@ export default function CadastroPerguntas() {
 
                 {/* Card */}
                 <View style={styles.card}>
+
+                    <View style={styles.seletorContainer}>
+                        <Text style={styles.label}>
+                            Selecionar palestra
+                        </Text>
+
+                        <TouchableOpacity
+                            style={styles.seletor}
+                            onPress={() => setModalPalestras(true)}
+                            disabled={carregandoPalestras || salvando}
+                        >
+                            <Text style={styles.textoSeletor}>
+                                {carregandoPalestras
+                                    ? 'Carregando palestras...'
+                                    : palestraSelecionada
+                                        ? palestraSelecionada.nome
+                                        : 'Selecione uma palestra'}
+                            </Text>
+
+                            <Text style={styles.seta}>
+                                ▼
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <Text style={styles.subtitulo}>
                         Nova pergunta
@@ -143,21 +206,20 @@ export default function CadastroPerguntas() {
                                     editable={!salvando}
                                 />
 
-                                {/* Radio */}
+
                                 <TouchableOpacity
                                     style={styles.corretamente}
-                                    onPress={() => setCorreta(index)}
+                                    onPress={() => alternarCorreta(index)}
                                     disabled={salvando}
                                 >
                                     <View
                                         style={[
-                                            styles.radio,
-                                            correta === index &&
-                                                styles.radioSelecionado,
+                                            styles.checkbox,
+                                            corretas.includes(index) && styles.checkboxSelecionado,
                                         ]}
                                     >
-                                        {correta === index && (
-                                            <View style={styles.radioInterno} />
+                                        {corretas.includes(index) && (
+                                            <Text style={styles.check}>✓</Text>
                                         )}
                                     </View>
 
@@ -170,7 +232,7 @@ export default function CadastroPerguntas() {
                         ))}
 
                         <Text style={styles.hint}>
-                            Selecione apenas uma alternativa como correta.
+                            Selecione apenas uma ou mais alternativas como correta.
                         </Text>
 
                     </View>
@@ -199,6 +261,44 @@ export default function CadastroPerguntas() {
                 </Text>
 
             </View>
+            <Modal
+                visible={modalPalestras}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setModalPalestras(false)}
+            >
+                <View style={styles.modalFundo}>
+                    <View style={styles.modal}>
+                        <Text style={styles.modalTitulo}>
+                            Selecionar palestra
+                        </Text>
+
+                        {palestras.map((palestra) => (
+                            <TouchableOpacity
+                                key={palestra.id}
+                                style={styles.opcaoPalestra}
+                                onPress={() => {
+                                    setPalestraSelecionada(palestra);
+                                    setModalPalestras(false);
+                                }}
+                            >
+                                <Text style={styles.textoOpcao}>
+                                    {palestra.nome}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+
+                        <TouchableOpacity
+                            style={styles.botaoCancelar}
+                            onPress={() => setModalPalestras(false)}
+                        >
+                            <Text style={styles.textoCancelar}>
+                                Cancelar
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -337,26 +437,25 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
 
-    radio: {
+    checkbox: {
         width: 20,
         height: 20,
-        borderRadius: 10,
+        borderRadius: 4,
         borderWidth: 2,
         borderColor: '#7B1B38',
-
         alignItems: 'center',
         justifyContent: 'center',
     },
 
-    radioSelecionado: {
+    checkboxSelecionado: {
+        backgroundColor: '#A52A4F',
         borderColor: '#A52A4F',
     },
 
-    radioInterno: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: '#A52A4F',
+    check: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 
     textoCorreta: {
@@ -403,5 +502,81 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 12,
         color: '#8B949E',
+    },
+
+    seletorContainer: {
+        marginBottom: 20,
+    },
+
+    seletor: {
+        height: 40,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+
+        backgroundColor: '#0D1117',
+        borderWidth: 1,
+        borderColor: '#7B1B38',
+        borderRadius: 6,
+    },
+
+    textoSeletor: {
+        color: '#E6EDF3',
+        fontSize: 14,
+    },
+
+    seta: {
+        color: '#8B949E',
+        fontSize: 12,
+    },
+
+    modalFundo: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+
+    modal: {
+        width: '100%',
+        maxWidth: 500,
+        backgroundColor: '#0D1117',
+        borderWidth: 1,
+        borderColor: '#7B1B38',
+        borderRadius: 8,
+        padding: 20,
+    },
+
+    modalTitulo: {
+        fontSize: 20,
+        color: '#E6EDF3',
+        marginBottom: 16,
+        fontWeight: '600',
+    },
+
+    opcaoPalestra: {
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#30363D',
+    },
+
+    textoOpcao: {
+        color: '#E6EDF3',
+        fontSize: 14,
+    },
+
+    botaoCancelar: {
+        marginTop: 16,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+
+    textoCancelar: {
+        color: '#A52A4F',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
