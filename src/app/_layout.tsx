@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import Toast from 'react-native-toast-message';
 
 import { Cores } from '@/constants/cores';
 
@@ -10,6 +11,12 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0D1017' } }}>
         <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: Cores.fundo } }} />
       </Stack>
+      <Toast
+      position="top"
+      topOffset={80}
+      autoHide={true}
+    />
     </>
+    
   );
 }
