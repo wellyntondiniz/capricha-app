@@ -1,17 +1,22 @@
 import BASE_URL from './api';
+import { Pergunta } from './perguntaService';
 import type { Evento } from './eventoService';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 export type Palestra = {
-  id?: number;
-  nome?: string;
-  descricao?: string;
-  palestrante?: string;
-  data?: string;
-  horario?: string;
-  evento?: Evento | string;
-  imagem?: string | null;
-};
+    id? : number;
+    nome? : string;
+    descricao? : string;
+    palestrante? : string;
+    data? : Date;
+    perguntas?: Pergunta[];
+    evento?: Evento | string;
+    imagem?: string | null;
+}
+
+const URL = `${BASE_URL}/palestras`;
+
+export async function cadastrarPalestra(palestra: Palestra): Promise<Palestra> {
 
 export type PalestraApiError = {
   status: number;
@@ -53,6 +58,32 @@ export async function salvarPalestra(
   return res.json();
 }
 
+export async function listarPalestras(): Promise<Palestra[]> {
+  const res = await fetch(URL);
+
+  if (!res.ok) throw new Error('Erro ao listar palestras');
+
+  return res.json();
+}
+
+export async function adicionarPergunta(id: number, pergunta: Omit<Pergunta, 'id'>): Promise<Pergunta> {
+  const res = await fetch(`${URL}/${id}/add-pergunta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pergunta),
+  });
+  if (!res.ok) throw new Error('Erro ao adicionar pergunta');
+  return res.json();
+}
+
+export async function listarPerguntas(
+  id: number
+): Promise<Pergunta[]> {
+  const res = await fetch(`${URL}/${id}/perguntas`);
+
+  if (!res.ok) throw new Error('Erro ao listar perguntas');
+
+  return res.json();
 export async function salvarPalestraComImagem(
   dados: {
     nome: string;
