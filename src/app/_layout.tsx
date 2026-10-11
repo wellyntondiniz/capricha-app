@@ -8,10 +8,10 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0D1017' } }} />
       <Toast
-          position="top"
-          topOffset={80}
-          autoHide={true}
-        />
+      position="top"
+      topOffset={80}
+      autoHide={true}
+    />
     </>
     
   );
