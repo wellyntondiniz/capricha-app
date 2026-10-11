@@ -18,7 +18,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
@@ -142,12 +141,12 @@ export default function CadastroPalestra() {
     const dataInformada =
       new Date(ano, mes - 1, dia);
 
-    return (
-      dataInformada.getFullYear() === ano &&
-      dataInformada.getMonth() === mes - 1 &&
-      dataInformada.getDate() === dia
-    );
-  };
+function mascararData(texto: string): string {
+  let valor = texto.replace(/\D/g, '');
+  if (valor.length > 2) valor = valor.slice(0, 2) + '/' + valor.slice(2);
+  if (valor.length > 5) valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
+  return valor;
+}
 
   const validarHorario = (horario: string) => {
 
@@ -162,13 +161,18 @@ export default function CadastroPalestra() {
       return false;
     }
 
-    return (
-      hora >= 0 &&
-      hora <= 23 &&
-      minuto >= 0 &&
-      minuto <= 59
-    );
-  };
+  // Propriedades comuns de cada campo: valor, erro, digitação e saída do campo.
+  function campo(nome: Campo, mascara?: (texto: string) => string) {
+    return {
+      value: valores[nome],
+      erro: erros[nome],
+      onChangeText: (texto: string) => alterar(nome, mascara ? mascara(texto) : texto),
+      onBlur: () => formulario.sair(nome),
+      style: styles.input,
+      estiloRotulo: styles.label,
+      estiloContainer: styles.campo,
+    };
+  }
 
   const cadastrarPalestra = async () => {
 
@@ -330,9 +334,7 @@ export default function CadastroPalestra() {
         <TextInput
           style={styles.input}
           placeholder="Digite o nome da palestra"
-          placeholderTextColor="#777"
-          value={nome}
-          onChangeText={setNome}
+          {...campo('nome')}
         />
 
         <Text style={styles.label}>
@@ -345,10 +347,9 @@ export default function CadastroPalestra() {
             styles.textArea,
           ]}
           placeholder="Digite a descrição da palestra"
-          placeholderTextColor="#777"
-          value={descricao}
-          onChangeText={setDescricao}
           multiline
+          {...campo('descricao')}
+          style={[styles.input, styles.textArea]}
         />
 
         <Text style={styles.label}>
@@ -358,9 +359,7 @@ export default function CadastroPalestra() {
         <TextInput
           style={styles.input}
           placeholder="Digite o nome do palestrante"
-          placeholderTextColor="#777"
-          value={palestrante}
-          onChangeText={setPalestrante}
+          {...campo('palestrante')}
         />
 
         <View style={styles.row}>
@@ -554,9 +553,14 @@ export default function CadastroPalestra() {
           </View>
         )}
 
+        <View style={styles.mensagem}>
+          <MensagemFormulario mensagem={mensagem} />
+        </View>
+
         <Pressable
-          style={styles.button}
+          style={[styles.button, enviando && styles.buttonDisabled]}
           onPress={cadastrarPalestra}
+          disabled={enviando}
         >
 
           <Text style={styles.buttonText}>
@@ -637,6 +641,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  campo: {
+    marginBottom: 0,
+  },
+
   label: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -647,7 +655,6 @@ const styles = StyleSheet.create({
 
   input: {
     height: 50,
-    borderWidth: 1,
     borderColor: '#8E173D',
     borderRadius: 8,
     paddingHorizontal: 15,
@@ -669,6 +676,11 @@ const styles = StyleSheet.create({
 
   half: {
     flex: 1,
+    marginBottom: 0,
+  },
+
+  mensagem: {
+    marginTop: 20,
   },
 
   dateButton: {
@@ -815,11 +827,15 @@ const styles = StyleSheet.create({
 
   button: {
     height: 52,
-    marginTop: 30,
+    marginTop: 10,
     borderRadius: 8,
     backgroundColor: '#A71948',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
 
   buttonText: {
