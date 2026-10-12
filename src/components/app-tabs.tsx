@@ -27,6 +27,11 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="check-in">
+        <NativeTabs.Trigger.Label>Check-in</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="qrcode.viewfinder" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
