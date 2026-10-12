@@ -3,21 +3,19 @@ import {
   PalestraApiError,
   salvarPalestraComImagem,
 } from '@/services/palestraService';
-
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-
 import { useEffect, useState } from 'react';
-
 import {
   Alert,
-  Modal,
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
@@ -25,20 +23,16 @@ import { Calendar } from 'react-native-calendars';
 const paraDataHora = (data: string, horario: string): Date => {
   const [dia, mes, ano] = data.split('/').map(Number);
   const [hora, minuto] = horario.split(':').map(Number);
-
-  return new Date(
-    ano,
-    mes - 1,
-    dia,
-    hora,
-    minuto
-  );
+  return new Date(ano, mes - 1, dia, hora, minuto);
 };
 
-const mostrarAlerta = (
-  titulo: string,
-  mensagem: string
-) => {
+const agoraSemSegundos = (): Date => {
+  const agora = new Date();
+  agora.setSeconds(0, 0);
+  return agora;
+};
+
+const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
     window.alert(`${titulo}\n\n${mensagem}`);
   } else {
@@ -46,30 +40,32 @@ const mostrarAlerta = (
   }
 };
 
-export default function CadastroPalestra() {
+// DD/MM/AAAA -> AAAA-MM-DD (formato esperado pelo react-native-calendars)
+const converterParaISO = (dataBR: string) => {
+  const [dia, mes, ano] = dataBR.split('/');
+  return `${ano}-${mes}-${dia}`;
+};
 
+const hojeISO = () => {
+  const agora = new Date();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${agora.getFullYear()}-${mes}-${dia}`;
+};
+
+export default function CadastroPalestra() {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [palestrante, setPalestrante] = useState('');
   const [data, setData] = useState('');
   const [horario, setHorario] = useState('');
-  const [evento, setEvento] = useState('');
   const [calendarioVisivel, setCalendarioVisivel] = useState(false);
 
-  const converterParaISO = (dataBR: string) => {
-    const [dia, mes, ano] = dataBR.split('/');
-    return `${ano}-${mes}-${dia}`;
-  };
-
   const [eventos, setEventos] = useState<Evento[]>([]);
-  const [eventoSelecionado, setEventoSelecionado] =
-    useState<Evento | null>(null);
+  const [eventoSelecionado, setEventoSelecionado] = useState<Evento | null>(null);
 
-  const [imagem, setImagem] =
-    useState<ImagePicker.ImagePickerAsset | null>(null);
-
-  const [carregandoImagem, setCarregandoImagem] =
-    useState(false);
+  const [imagem, setImagem] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [carregandoImagem, setCarregandoImagem] = useState(false);
 
   useEffect(() => {
     listarEventos()
@@ -78,44 +74,33 @@ export default function CadastroPalestra() {
   }, []);
 
   const selecionarImagem = async () => {
-
     try {
-
       if (Platform.OS !== 'web') {
-        const permissao =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permissao.granted) {
           mostrarAlerta(
             'Permissão necessária',
             'É necessário permitir o acesso às imagens para selecionar uma imagem.'
           );
-
           return;
         }
       }
 
       setCarregandoImagem(true);
 
-      const resultado =
-        await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [16, 9],
-          quality: 0.8,
-        });
+      const resultado = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
 
       if (!resultado.canceled) {
         setImagem(resultado.assets[0]);
       }
-
-    } catch (error) {
-
-      mostrarAlerta(
-        'Erro',
-        'Não foi possível selecionar a imagem.'
-      );
-
+    } catch {
+      mostrarAlerta('Erro', 'Não foi possível selecionar a imagem.');
     } finally {
       setCarregandoImagem(false);
     }
@@ -126,149 +111,115 @@ export default function CadastroPalestra() {
   };
 
   const validarData = (data: string) => {
-
     if (data.length !== 10) {
       return false;
     }
 
-    const [dia, mes, ano] =
-      data.split('/').map(Number);
+    const [dia, mes, ano] = data.split('/').map(Number);
 
     if (!dia || !mes || !ano) {
       return false;
     }
 
-    const dataInformada =
-      new Date(ano, mes - 1, dia);
+    const dataInformada = new Date(ano, mes - 1, dia);
 
-function mascararData(texto: string): string {
-  let valor = texto.replace(/\D/g, '');
-  if (valor.length > 2) valor = valor.slice(0, 2) + '/' + valor.slice(2);
-  if (valor.length > 5) valor = valor.slice(0, 5) + '/' + valor.slice(5, 9);
-  return valor;
-}
+    return (
+      dataInformada.getFullYear() === ano &&
+      dataInformada.getMonth() === mes - 1 &&
+      dataInformada.getDate() === dia
+    );
+  };
 
   const validarHorario = (horario: string) => {
-
     if (horario.length !== 5) {
       return false;
     }
 
-    const [hora, minuto] =
-      horario.split(':').map(Number);
+    const [hora, minuto] = horario.split(':').map(Number);
 
     if (hora === 0 && minuto === 0) {
+      // 00:00 não é considerado um horário válido de início de palestra
       return false;
     }
 
-  // Propriedades comuns de cada campo: valor, erro, digitação e saída do campo.
-  function campo(nome: Campo, mascara?: (texto: string) => string) {
-    return {
-      value: valores[nome],
-      erro: erros[nome],
-      onChangeText: (texto: string) => alterar(nome, mascara ? mascara(texto) : texto),
-      onBlur: () => formulario.sair(nome),
-      style: styles.input,
-      estiloRotulo: styles.label,
-      estiloContainer: styles.campo,
-    };
-  }
+    return (
+      hora >= 0 &&
+      hora <= 23 &&
+      minuto >= 0 &&
+      minuto <= 59
+    );
+  };
 
   const cadastrarPalestra = async () => {
-
     if (!nome.trim()) {
-      mostrarAlerta(
-        'Campo obrigatório',
-        'É necessário informar o nome da palestra.'
-      );
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o nome da palestra.');
       return;
     }
 
     if (!palestrante.trim()) {
-      mostrarAlerta(
-        'Campo obrigatório',
-        'É necessário informar o palestrante.'
-      );
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o palestrante.');
       return;
     }
 
     if (!data.trim()) {
-      mostrarAlerta(
-        'Campo obrigatório',
-        'É necessário informar a data.'
-      );
+      mostrarAlerta('Campo obrigatório', 'É necessário informar a data.');
       return;
     }
 
     if (!horario.trim()) {
-      mostrarAlerta(
-        'Campo obrigatório',
-        'É necessário informar o horário.'
-      );
+      mostrarAlerta('Campo obrigatório', 'É necessário informar o horário.');
       return;
     }
 
     if (!eventoSelecionado) {
-      mostrarAlerta(
-        'Campo obrigatório',
-        'É necessário selecionar o evento.'
-      );
+      mostrarAlerta('Campo obrigatório', 'É necessário selecionar o evento.');
       return;
     }
 
     if (!validarData(data)) {
-      mostrarAlerta(
-        'Data inválida',
-        'Digite uma data válida no formato DD/MM/AAAA.'
-      );
+      mostrarAlerta('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
       return;
     }
 
     if (!validarHorario(horario)) {
+      mostrarAlerta('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
+      return;
+    }
+
+    const dataHoraPalestra = paraDataHora(data, horario);
+
+    if (dataHoraPalestra < agoraSemSegundos()) {
       mostrarAlerta(
         'Horário inválido',
-        'Digite um horário válido no formato HH:MM (00:00 não é permitido).'
+        'A palestra não pode ser cadastrada em uma data e horário que já passaram.'
       );
       return;
     }
 
     if (eventoSelecionado.dataInicio) {
-
-      const dataHoraPalestra =
-        paraDataHora(data, horario);
-
-      const inicioEvento =
-        new Date(eventoSelecionado.dataInicio);
+      const inicioEvento = new Date(eventoSelecionado.dataInicio);
 
       if (dataHoraPalestra < inicioEvento) {
-
         mostrarAlerta(
           'Fora do período do evento',
           'A palestra não pode ocorrer antes do início do evento.'
         );
-
         return;
       }
 
       if (eventoSelecionado.dataTermino) {
-
-        const terminoEvento =
-          new Date(eventoSelecionado.dataTermino);
-
+        const terminoEvento = new Date(eventoSelecionado.dataTermino);
         if (dataHoraPalestra > terminoEvento) {
-
           mostrarAlerta(
             'Fora do período do evento',
             'A palestra não pode ocorrer depois do término do evento.'
           );
-
           return;
         }
       }
     }
 
     try {
-
       await salvarPalestraComImagem(
         {
           nome: nome.trim(),
@@ -281,10 +232,7 @@ function mascararData(texto: string): string {
         imagem
       );
 
-      mostrarAlerta(
-        'Sucesso',
-        'Palestra cadastrada com sucesso!'
-      );
+      mostrarAlerta('Sucesso', 'Palestra cadastrada com sucesso!');
 
       setNome('');
       setDescricao('');
@@ -293,77 +241,54 @@ function mascararData(texto: string): string {
       setHorario('');
       setEventoSelecionado(null);
       setImagem(null);
-
     } catch (error) {
-
-      const erro =
-        error as PalestraApiError;
+      const erro = error as PalestraApiError;
 
       if (erro.status === 409) {
-
         mostrarAlerta(
           'Conflito de agenda',
-          erro.message ||
-            'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
+          erro.message || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
         );
-
       } else {
-
-        mostrarAlerta(
-          'Erro',
-          erro.message ||
-            'Não foi possível salvar a palestra.'
-        );
+        mostrarAlerta('Erro', erro.message || 'Não foi possível salvar a palestra.');
       }
     }
   };
 
   return (
     <ScrollView style={styles.container}>
-
       <View style={styles.card}>
+        <Text style={styles.title}>Cadastro de palestra</Text>
 
-        <Text style={styles.title}>
-          Cadastro de palestra
-        </Text>
-
-        <Text style={styles.label}>
-          Nome da palestra
-        </Text>
-
+        <Text style={styles.label}>Nome da palestra</Text>
         <TextInput
           style={styles.input}
           placeholder="Digite o nome da palestra"
-          {...campo('nome')}
+          placeholderTextColor="#777"
+          value={nome}
+          onChangeText={setNome}
         />
 
-        <Text style={styles.label}>
-          Descrição
-        </Text>
-
+        <Text style={styles.label}>Descrição</Text>
         <TextInput
-          style={[
-            styles.input,
-            styles.textArea,
-          ]}
-          placeholder="Digite a descrição da palestra"
-          multiline
-          {...campo('descricao')}
           style={[styles.input, styles.textArea]}
+          placeholder="Digite a descrição da palestra"
+          placeholderTextColor="#777"
+          value={descricao}
+          onChangeText={setDescricao}
+          multiline
         />
 
-        <Text style={styles.label}>
-          Palestrante
-        </Text>
-
+        <Text style={styles.label}>Palestrante</Text>
         <TextInput
           style={styles.input}
           placeholder="Digite o nome do palestrante"
-          {...campo('palestrante')}
+          placeholderTextColor="#777"
+          value={palestrante}
+          onChangeText={setPalestrante}
         />
 
         <View style={styles.row}>
-
           <View style={styles.half}>
             <Text style={styles.label}>Data</Text>
             <Pressable
@@ -374,201 +299,86 @@ function mascararData(texto: string): string {
                 {data || 'DD/MM/AAAA'}
               </Text>
             </Pressable>
-
-            <Text style={styles.label}>
-              Data
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#777"
-              value={data}
-              onChangeText={(texto) => {
-
-                let valor =
-                  texto.replace(/\D/g, '');
-
-                if (valor.length > 2) {
-                  valor =
-                    valor.slice(0, 2) +
-                    '/' +
-                    valor.slice(2);
-                }
-
-                if (valor.length > 5) {
-                  valor =
-                    valor.slice(0, 5) +
-                    '/' +
-                    valor.slice(5, 9);
-                }
-
-                setData(valor);
-              }}
-            />
-
           </View>
 
           <View style={styles.half}>
-
-            <Text style={styles.label}>
-              Horário
-            </Text>
-
+            <Text style={styles.label}>Horário</Text>
             <TextInput
               style={styles.input}
               placeholder="00:00"
               placeholderTextColor="#777"
               value={horario}
               onChangeText={(texto) => {
-
-                let valor =
-                  texto.replace(/\D/g, '');
+                let valor = texto.replace(/\D/g, '');
 
                 if (valor.length > 2) {
-                  valor =
-                    valor.slice(0, 2) +
-                    ':' +
-                    valor.slice(2, 4);
+                  valor = valor.slice(0, 2) + ':' + valor.slice(2, 4);
                 }
 
                 setHorario(valor);
               }}
             />
-
           </View>
-
         </View>
 
-        <Text style={styles.label}>
-          Imagem da palestra
-        </Text>
-
+        <Text style={styles.label}>Imagem da palestra</Text>
         {imagem ? (
-
           <View style={styles.imagemContainer}>
-
             <Image
               source={{ uri: imagem.uri }}
               style={styles.imagemPreview}
               resizeMode="cover"
             />
-
-            <Pressable
-              style={styles.removerImagem}
-              onPress={removerImagem}
-            >
-              <Text style={styles.removerImagemText}>
-                Remover imagem
-              </Text>
+            <Pressable style={styles.removerImagem} onPress={removerImagem}>
+              <Text style={styles.removerImagemText}>Remover imagem</Text>
             </Pressable>
-
           </View>
-
         ) : (
-
           <Pressable
             style={styles.selecionarImagem}
             onPress={selecionarImagem}
             disabled={carregandoImagem}
           >
-
             <Text style={styles.selecionarImagemText}>
-              {carregandoImagem
-                ? 'Selecionando...'
-                : 'Selecionar imagem'}
+              {carregandoImagem ? 'Selecionando...' : 'Selecionar imagem'}
             </Text>
-
           </Pressable>
-
         )}
+        <Text style={styles.imagemOpcional}>A imagem é opcional.</Text>
 
-        <Text style={styles.imagemOpcional}>
-          A imagem é opcional.
-        </Text>
-
-        <Text style={styles.label}>
-          Evento
-        </Text>
-
+        <Text style={styles.label}>Evento</Text>
         {eventos.length === 0 ? (
-
           <View style={styles.avisoBox}>
-
-            <Text style={styles.avisoText}>
-              Nenhum evento cadastrado.
-            </Text>
-
-            <Pressable
-              onPress={() =>
-                router.push('/cadastro-evento')
-              }
-            >
-
-              <Text style={styles.link}>
-                Cadastrar um evento
-              </Text>
-
+            <Text style={styles.avisoText}>Nenhum evento cadastrado.</Text>
+            <Pressable onPress={() => router.push('/cadastro-evento')}>
+              <Text style={styles.link}>Cadastrar um evento</Text>
             </Pressable>
-
           </View>
-
         ) : (
-
           <View style={styles.eventosWrap}>
-
             {eventos.map((evento) => {
-
-              const selecionado =
-                eventoSelecionado?.id === evento.id;
-
+              const selecionado = eventoSelecionado?.id === evento.id;
               return (
-
                 <Pressable
                   key={evento.id}
-                  style={[
-                    styles.chip,
-                    selecionado &&
-                      styles.chipSelecionado,
-                  ]}
-                  onPress={() =>
-                    setEventoSelecionado(evento)
-                  }
+                  style={[styles.chip, selecionado && styles.chipSelecionado]}
+                  onPress={() => setEventoSelecionado(evento)}
                 >
-
-                  <Text
-                    style={[
-                      styles.chipText,
-                      selecionado &&
-                        styles.chipTextSelecionado,
-                    ]}
-                  >
+                  <Text style={[styles.chipText, selecionado && styles.chipTextSelecionado]}>
                     {evento.nome}
                   </Text>
-
                 </Pressable>
               );
             })}
-
           </View>
         )}
 
-        <View style={styles.mensagem}>
-          <MensagemFormulario mensagem={mensagem} />
-        </View>
-
         <Pressable
-          style={[styles.button, enviando && styles.buttonDisabled]}
+          style={styles.button}
           onPress={cadastrarPalestra}
-          disabled={enviando}
         >
-
-          <Text style={styles.buttonText}>
-            Cadastrar
-          </Text>
-
+          <Text style={styles.buttonText}>Cadastrar</Text>
         </Pressable>
-
       </View>
 
       <Modal
@@ -581,6 +391,7 @@ function mascararData(texto: string): string {
           <View style={styles.modalContent}>
             <Calendar
               current={data ? converterParaISO(data) : undefined}
+              minDate={hojeISO()}
               onDayPress={(dia: { dateString: string }) => {
                 const [ano, mes, diaNum] = dia.dateString.split('-');
                 setData(`${diaNum}/${mes}/${ano}`);
@@ -617,8 +428,8 @@ function mascararData(texto: string): string {
   );
 }
 
-const styles = StyleSheet.create({
 
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0D0E13',
@@ -641,10 +452,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  campo: {
-    marginBottom: 0,
-  },
-
   label: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -655,6 +462,7 @@ const styles = StyleSheet.create({
 
   input: {
     height: 50,
+    borderWidth: 1,
     borderColor: '#8E173D',
     borderRadius: 8,
     paddingHorizontal: 15,
@@ -676,11 +484,69 @@ const styles = StyleSheet.create({
 
   half: {
     flex: 1,
-    marginBottom: 0,
   },
 
-  mensagem: {
-    marginTop: 20,
+  eventosWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    borderRadius: 20,
+    backgroundColor: '#0D0E13',
+  },
+
+  chipSelecionado: {
+    backgroundColor: '#A71948',
+  },
+
+  chipText: {
+    color: '#CCCCCC',
+    fontSize: 14,
+  },
+
+  chipTextSelecionado: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+
+  avisoBox: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#8E173D',
+    borderRadius: 8,
+  },
+
+  avisoText: {
+    color: '#CCCCCC',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+
+  link: {
+    color: '#A92B50',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  button: {
+    height: 52,
+    marginTop: 30,
+    borderRadius: 8,
+    backgroundColor: '#A71948',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: 'bold',
   },
 
   dateButton: {
@@ -775,72 +641,5 @@ const styles = StyleSheet.create({
     color: '#888888',
     fontSize: 12,
     marginTop: 6,
-  },
-
-  eventosWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#8E173D',
-    borderRadius: 20,
-    backgroundColor: '#0D0E13',
-  },
-
-  chipSelecionado: {
-    backgroundColor: '#A71948',
-  },
-
-  chipText: {
-    color: '#CCCCCC',
-    fontSize: 14,
-  },
-
-  chipTextSelecionado: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-
-  avisoBox: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#8E173D',
-    borderRadius: 8,
-  },
-
-  avisoText: {
-    color: '#CCCCCC',
-    fontSize: 14,
-    marginBottom: 6,
-  },
-
-  link: {
-    color: '#A92B50',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  button: {
-    height: 52,
-    marginTop: 10,
-    borderRadius: 8,
-    backgroundColor: '#A71948',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: 'bold',
   },
 });
