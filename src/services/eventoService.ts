@@ -7,6 +7,7 @@ export type Evento = {
   descricao?: string;
   dataInicio?: string;
   dataTermino?: string;
+  ativo?: boolean;
 };
 
 export type EventoApiError = { status: number; message: string };
@@ -29,7 +30,13 @@ export async function listarEventos(): Promise<Evento[]> {
   return res.json();
 }
 
-export async function salvarEvento(evento: Omit<Evento, 'id'>): Promise<Evento> {
+export async function buscarEventoPorId(id: number): Promise<Evento> {
+  const res = await fetch(`${URL}/${id}`);
+  if (!res.ok) throw await lerErro(res);
+  return res.json();
+}
+
+export async function salvarEvento(evento: Omit<Evento, 'id' | 'ativo'>): Promise<Evento> {
   const res = await fetch(URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,6 +44,26 @@ export async function salvarEvento(evento: Omit<Evento, 'id'>): Promise<Evento> 
   });
   if (!res.ok) throw await lerErro(res);
   return res.json();
+}
+
+export const cadastrarEvento = salvarEvento;
+
+export async function atualizarEvento(
+  id: number,
+  evento: Omit<Evento, 'id' | 'ativo'>
+): Promise<Evento> {
+  const res = await fetch(`${URL}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(evento),
+  });
+  if (!res.ok) throw await lerErro(res);
+  return res.json();
+}
+
+export async function desativarEvento(id: number): Promise<void> {
+  const res = await fetch(`${URL}/${id}/desativar`, { method: 'PUT' });
+  if (!res.ok) throw await lerErro(res);
 }
 
 export async function listarPalestrasDoEvento(eventoId: number): Promise<Palestra[]> {
