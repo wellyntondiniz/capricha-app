@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { router, type Href, useRouter } from 'expo-router';
-
+import { type Href, useRouter } from 'expo-router';
 import {
     Image,
     Pressable,
@@ -22,7 +21,7 @@ type Icone = keyof typeof Ionicons.glyphMap;
 
 const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string; rota: Href }[] = [
   { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho, rota: '/(tabs)/eventos' },
-  { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/(tabs)/eventos' },
+  { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/palestras' },
   { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro, rota: '/(tabs)/ranking' },
   { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
 ];

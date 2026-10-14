@@ -259,6 +259,9 @@ export default function CadastroPalestra() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
+        <Pressable style={styles.voltarLista} onPress={() => router.replace('/palestras')}>
+          <Text style={styles.voltarListaTexto}>‹ Voltar para a lista de palestras</Text>
+        </Pressable>
         <Text style={styles.title}>Cadastro de palestra</Text>
 
         <Text style={styles.label}>Nome da palestra</Text>
@@ -443,6 +446,19 @@ const styles = StyleSheet.create({
     borderColor: '#8E173D',
     borderRadius: 12,
     backgroundColor: '#101118',
+  },
+
+  voltarLista: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingRight: 12,
+    marginBottom: 6,
+  },
+
+  voltarListaTexto: {
+    color: '#A92B50',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   title: {
