@@ -143,22 +143,6 @@ export default function HomeScreen() {
                 <Ionicons name="log-out-outline" size={22} color="#D9466F" />
               </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                usuario.notificacoesNaoLidas > 0
-                  ? `Notificações, ${usuario.notificacoesNaoLidas} não lidas`
-                  : 'Notificações'
-              }
-              onPress={() => router.push('/notificacoes')}
-              style={(state) => [
-                styles.sino,
-                estadoDoToque(state).hovered && styles.sinoHover,
-                estadoDoToque(state).pressed && styles.pressOpacidade,
-              ]}>
-              <Ionicons name="notifications-outline" size={24} color={Cores.texto} />
-              {usuario.notificacoesNaoLidas > 0 && <View style={styles.sinoBadge} />}
-            </Pressable>
           </View>
 
           {/* Acesso rápido */}

@@ -154,5 +154,3 @@ const styles = StyleSheet.create({
   botaoSairPressionado: { opacity: 0.8 },
   botaoSairTexto: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });
-
-export { default } from '../home_perfil';
