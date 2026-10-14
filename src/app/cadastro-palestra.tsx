@@ -3,6 +3,7 @@ import {
   PalestraApiError,
   salvarPalestraComImagem,
 } from '@/services/palestraService';
+import { erro, sucesso } from '@/utils/notify';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -79,7 +80,7 @@ export default function CadastroPalestra() {
         const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permissao.granted) {
-          mostrarAlerta(
+          erro(
             'Permissão necessária',
             'É necessário permitir o acesso às imagens para selecionar uma imagem.'
           );
@@ -100,7 +101,7 @@ export default function CadastroPalestra() {
         setImagem(resultado.assets[0]);
       }
     } catch {
-      mostrarAlerta('Erro', 'Não foi possível selecionar a imagem.');
+      erro('Erro', 'Não foi possível selecionar a imagem.');
     } finally {
       setCarregandoImagem(false);
     }
@@ -152,44 +153,44 @@ export default function CadastroPalestra() {
 
   const cadastrarPalestra = async () => {
     if (!nome.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o nome da palestra.');
+      erro('Campo obrigatório', 'É necessário informar o nome da palestra.');
       return;
     }
 
     if (!palestrante.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o palestrante.');
+      erro('Campo obrigatório', 'É necessário informar o palestrante.');
       return;
     }
 
     if (!data.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar a data.');
+      erro('Campo obrigatório', 'É necessário informar a data.');
       return;
     }
 
     if (!horario.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o horário.');
+      erro('Campo obrigatório', 'É necessário informar o horário.');
       return;
     }
 
     if (!eventoSelecionado) {
-      mostrarAlerta('Campo obrigatório', 'É necessário selecionar o evento.');
+      erro('Campo obrigatório', 'É necessário selecionar o evento.');
       return;
     }
 
     if (!validarData(data)) {
-      mostrarAlerta('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
+      erro('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
       return;
     }
 
     if (!validarHorario(horario)) {
-      mostrarAlerta('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
+      erro('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
       return;
     }
 
     const dataHoraPalestra = paraDataHora(data, horario);
 
     if (dataHoraPalestra < agoraSemSegundos()) {
-      mostrarAlerta(
+      erro(
         'Horário inválido',
         'A palestra não pode ser cadastrada em uma data e horário que já passaram.'
       );
@@ -200,7 +201,7 @@ export default function CadastroPalestra() {
       const inicioEvento = new Date(eventoSelecionado.dataInicio);
 
       if (dataHoraPalestra < inicioEvento) {
-        mostrarAlerta(
+        erro(
           'Fora do período do evento',
           'A palestra não pode ocorrer antes do início do evento.'
         );
@@ -210,7 +211,7 @@ export default function CadastroPalestra() {
       if (eventoSelecionado.dataTermino) {
         const terminoEvento = new Date(eventoSelecionado.dataTermino);
         if (dataHoraPalestra > terminoEvento) {
-          mostrarAlerta(
+          erro(
             'Fora do período do evento',
             'A palestra não pode ocorrer depois do término do evento.'
           );
@@ -232,7 +233,7 @@ export default function CadastroPalestra() {
         imagem
       );
 
-      mostrarAlerta('Sucesso', 'Palestra cadastrada com sucesso!');
+      sucesso('Sucesso', 'Palestra cadastrada com sucesso!');
 
       setNome('');
       setDescricao('');
@@ -242,15 +243,15 @@ export default function CadastroPalestra() {
       setEventoSelecionado(null);
       setImagem(null);
     } catch (error) {
-      const erro = error as PalestraApiError;
+      const erro_ = error as PalestraApiError;
 
-      if (erro.status === 409) {
+      if (erro_.status === 409) {
         mostrarAlerta(
           'Conflito de agenda',
-          erro.message || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
+          erro_.message || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
         );
       } else {
-        mostrarAlerta('Erro', erro.message || 'Não foi possível salvar a palestra.');
+        erro('Erro', erro_.message || 'Não foi possível salvar a palestra.');
       }
     }
   };
