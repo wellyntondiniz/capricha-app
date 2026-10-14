@@ -19,6 +19,8 @@ export default function RegisterScreen() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
+  const [senhaEmFoco, setSenhaEmFoco] = useState(false);
+  const [confirmarSenhaEmFoco, setConfirmarSenhaEmFoco] = useState(false);
 
   function emailValido(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -135,7 +137,7 @@ export default function RegisterScreen() {
               Senha
             </Text>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, senhaEmFoco && styles.inputContainerFocused]}>
               <TextInput
                 style={styles.passwordInput}
                 value={senha}
@@ -145,10 +147,17 @@ export default function RegisterScreen() {
                 secureTextEntry={!mostrarSenha}
                 autoCapitalize="none"
                 autoCorrect={false}
+                onFocus={() => setSenhaEmFoco(true)}
+                onBlur={() => setSenhaEmFoco(false)}
               />
               <Pressable
                 style={styles.passwordToggle}
-                onPress={() => setMostrarSenha((visivel) => !visivel)}
+                onPress={() => {
+                  setMostrarSenha((visivel) => !visivel);
+                  setSenhaEmFoco(true);
+                }}
+                onFocus={() => setSenhaEmFoco(true)}
+                onBlur={() => setSenhaEmFoco(false)}
                 accessibilityRole="button"
                 accessibilityLabel={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
                 hitSlop={8}
@@ -171,7 +180,7 @@ export default function RegisterScreen() {
               Confirmar senha
             </Text>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, confirmarSenhaEmFoco && styles.inputContainerFocused]}>
               <TextInput
                 style={styles.passwordInput}
                 value={confirmarSenha}
@@ -181,10 +190,17 @@ export default function RegisterScreen() {
                 secureTextEntry={!mostrarConfirmarSenha}
                 autoCapitalize="none"
                 autoCorrect={false}
+                onFocus={() => setConfirmarSenhaEmFoco(true)}
+                onBlur={() => setConfirmarSenhaEmFoco(false)}
               />
               <Pressable
                 style={styles.passwordToggle}
-                onPress={() => setMostrarConfirmarSenha((visivel) => !visivel)}
+                onPress={() => {
+                  setMostrarConfirmarSenha((visivel) => !visivel);
+                  setConfirmarSenhaEmFoco(true);
+                }}
+                onFocus={() => setConfirmarSenhaEmFoco(true)}
+                onBlur={() => setConfirmarSenhaEmFoco(false)}
                 accessibilityRole="button"
                 accessibilityLabel={mostrarConfirmarSenha ? 'Ocultar senha de confirmação' : 'Mostrar senha de confirmação'}
                 hitSlop={8}
@@ -346,10 +362,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  inputContainerFocused: {
+    borderColor: '#A52A4F',
+    borderWidth: 2,
+  },
+
   passwordInput: {
     flex: 1,
+    minWidth: 0,
     color: '#E6EDF3',
     fontSize: 14,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    outlineStyle: 'none',
   },
 
   passwordToggle: {
