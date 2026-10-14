@@ -242,6 +242,7 @@ export default function CadastroPalestra() {
       setHorario('');
       setEventoSelecionado(null);
       setImagem(null);
+      router.replace('/palestras');
     } catch (error) {
       const erro_ = error as PalestraApiError;
 

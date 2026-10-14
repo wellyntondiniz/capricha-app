@@ -109,10 +109,7 @@ export default function ListaPalestras() {
               <View style={styles.estadoVazio}>
                 <Ionicons name="mic-outline" size={46} color={Cores.destaque} />
                 <Text style={styles.estadoTitulo}>Nenhuma palestra cadastrada</Text>
-                <Text style={styles.textoSuave}>Cadastre a primeira palestra para começar.</Text>
-                <Pressable style={styles.cadastrarPrimeira} onPress={() => router.push('/cadastro-palestra')}>
-                  <Text style={styles.cadastrarPrimeiraTexto}>Cadastrar palestra</Text>
-                </Pressable>
+                <Text style={styles.textoSuave}>Use o botão Nova para cadastrar uma palestra.</Text>
               </View>
             }
             renderItem={({ item }) => {
@@ -181,8 +178,6 @@ const styles = StyleSheet.create({
   estadoVazio: { alignItems: 'center', padding: 28, borderRadius: 18, backgroundColor: Cores.superficie, borderWidth: 1, borderColor: Cores.borda },
   estadoTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700', textAlign: 'center', marginTop: 12, marginBottom: 6 },
   textoSuave: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20, textAlign: 'center' },
-  cadastrarPrimeira: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10, backgroundColor: Cores.vinho },
-  cadastrarPrimeiraTexto: { color: '#FFFFFF', fontWeight: '700' },
   tentarNovamente: { marginTop: 18, paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10, borderWidth: 1, borderColor: Cores.vinhoClaro },
   tentarNovamenteTexto: { color: Cores.vinhoClaro, fontWeight: '700' },
 });
