@@ -18,8 +18,6 @@ import {
   View,
 } from 'react-native';
 
-const [participacoes, setParticipacoes] = useState<Participacao[]>([]);
-
 export default function ParticipantesEvento() {
   const router = useRouter();
 

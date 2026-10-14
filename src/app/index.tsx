@@ -49,6 +49,7 @@ export default function LoginScreen() {
       const usuario = await entrar(valores.email.trim(), valores.senha);
       formulario.limpar();
       setMensagem({ texto: `Login realizado. Bem-vindo(a), ${usuario.nome}!`, tipo: 'sucesso' });
+      router.replace('/(tabs)/home');
     } catch (erro) {
       if (erro instanceof ErroApi && formulario.definirErros(erro.campos)) {
         setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
