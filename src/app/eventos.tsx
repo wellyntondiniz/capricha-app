@@ -326,6 +326,16 @@ export default function EventoScreen() {
                 {eventoAberto.dataTermino ? ` até ${formatarDataHora(eventoAberto.dataTermino)}` : ''}
               </ThemedText>
             )}
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/resumos', params: { eventoId: String(eventoAberto.id) } })
+              }
+              style={styles.resumosBotao}
+              accessibilityRole="button">
+              <ThemedText type="smallBold" style={styles.resumosTexto}>
+                Ver resumos do evento
+              </ThemedText>
+            </Pressable>
             <ThemedText type="smallBold" style={styles.tituloSecao}>
               Palestras
             </ThemedText>
@@ -730,6 +740,17 @@ const styles = StyleSheet.create({
   },
   tituloSecao: {
     marginTop: Spacing.three,
+  },
+  resumosBotao: {
+    alignSelf: 'flex-start',
+    marginTop: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+    backgroundColor: '#A71948',
+  },
+  resumosTexto: {
+    color: '#ffffff',
   },
   cardPalestra: {
     borderRadius: Spacing.three,
