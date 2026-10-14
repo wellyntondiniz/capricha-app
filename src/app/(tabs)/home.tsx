@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { router, type Href, useRouter } from 'expo-router';
+
 import {
     Pressable,
     PressableStateCallbackType,
@@ -17,11 +18,14 @@ import { useAuth } from '@/contexts/AuthContext';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
-const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string }[] = [
-  { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho },
-  { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro },
-  { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro },
-  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo },
+// TODO: trocar pelos dados reais do usuário quando existir login
+const usuario = { nome: 'Ana Souza', foto: null as string | null, notificacoesNaoLidas: 2 };
+
+const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string; rota: Href }[] = [
+  { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho, rota: '/(tabs)/eventos' },
+  { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/(tabs)/eventos' },
+  { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro, rota: '/(tabs)/ranking' },
+  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
 ];
 
 function estadoDoToque(state: PressableStateCallbackType) {
@@ -76,9 +80,7 @@ export default function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Abrir meu perfil"
-              onPress={() => {
-                router.push('/(tabs)/perfil');
-              }}
+              onPress={() => router.navigate('/(tabs)/perfil')}
               style={(state) => [styles.avatarBotao, estadoDoToque(state).pressed && styles.pressOpacidade]}>
               <View style={[styles.avatar, styles.avatarFallback]}>
                 <Text style={styles.avatarTexto}>{iniciais(nomeCompleto)}</Text>
@@ -141,6 +143,22 @@ export default function HomeScreen() {
                 <Ionicons name="log-out-outline" size={22} color="#D9466F" />
               </Pressable>
             </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                usuario.notificacoesNaoLidas > 0
+                  ? `Notificações, ${usuario.notificacoesNaoLidas} não lidas`
+                  : 'Notificações'
+              }
+              onPress={() => router.push('/notificacoes')}
+              style={(state) => [
+                styles.sino,
+                estadoDoToque(state).hovered && styles.sinoHover,
+                estadoDoToque(state).pressed && styles.pressOpacidade,
+              ]}>
+              <Ionicons name="notifications-outline" size={24} color={Cores.texto} />
+              {usuario.notificacoesNaoLidas > 0 && <View style={styles.sinoBadge} />}
+            </Pressable>
           </View>
 
           {/* Acesso rápido */}
@@ -153,9 +171,7 @@ export default function HomeScreen() {
                 key={item.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.titulo}. ${item.descricao}`}
-                onPress={() => {
-                  /* TODO: conectar à tela correspondente (fora do escopo desta história) */
-                }}
+                onPress={() => router.navigate(item.rota)}
                 style={(state) => {
                   const { pressed, hovered } = estadoDoToque(state);
                   return [
