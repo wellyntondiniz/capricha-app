@@ -145,6 +145,7 @@ export default function RegisterScreen() {
                 placeholder="Digite sua senha"
                 placeholderTextColor="#8B949E"
                 secureTextEntry={!mostrarSenha}
+                autoComplete="new-password"
                 autoCapitalize="none"
                 autoCorrect={false}
                 onFocus={() => setSenhaEmFoco(true)}
@@ -188,6 +189,7 @@ export default function RegisterScreen() {
                 placeholder="Digite sua senha novamente"
                 placeholderTextColor="#8B949E"
                 secureTextEntry={!mostrarConfirmarSenha}
+                autoComplete="new-password"
                 autoCapitalize="none"
                 autoCorrect={false}
                 onFocus={() => setConfirmarSenhaEmFoco(true)}
@@ -353,6 +355,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     width: '100%',
     height: 40,
+    position: 'relative',
     paddingHorizontal: 12,
     backgroundColor: '#0D1117',
     borderWidth: 1,
@@ -372,8 +375,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: '#E6EDF3',
     fontSize: 14,
-    paddingHorizontal: 0,
+    paddingLeft: 0,
     paddingVertical: 0,
+    paddingRight: 40,
     backgroundColor: 'transparent',
     borderWidth: 0,
     borderColor: 'transparent',
@@ -381,10 +385,16 @@ const styles = StyleSheet.create({
   },
 
   passwordToggle: {
-    minWidth: 28,
-    height: 40,
+    position: 'absolute',
+    top: 0,
+    right: 6,
+    width: 36,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
+    backgroundColor: '#0D1117',
+    borderRadius: 4,
   },
   hint: {
     marginTop: 5,
