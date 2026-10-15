@@ -1,5 +1,6 @@
 import { adicionarPergunta, listarPalestras, Palestra } from '@/services/palestraService';
 import { erro, sucesso } from '@/utils/notify';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
     Modal,
@@ -109,6 +110,8 @@ export default function CadastroPerguntas() {
                 'Pergunta cadastrada!',
                 'A pergunta foi adicionada com sucesso.'
             );
+
+            router.push('/lista-perguntas')
         } finally {
             setSalvando(false);
         }

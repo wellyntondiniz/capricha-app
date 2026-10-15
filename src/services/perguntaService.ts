@@ -13,13 +13,13 @@ export type Pergunta = {
 
 const URL = `${BASE_URL}/pergunta`;
 
-export async function listarPerguntas(): Promise<Pergunta[]> {
-  const res = await fetch(URL);
+  export async function listarPerguntas(): Promise<Pergunta[]> {
+    const res = await fetch(URL);
 
-  if (!res.ok) throw new Error('Erro ao listar perguntas');
+    if (!res.ok) throw new Error('Erro ao listar perguntas');
 
-  return res.json();
-}
+    return res.json();
+  }
 
 export async function salvarPergunta(
   pergunta: Pergunta
