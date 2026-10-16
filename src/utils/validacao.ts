@@ -12,11 +12,31 @@ export function validarEmail(valor: string): string | undefined {
   return undefined;
 }
 
-export function validarSenha(valor: string): string | undefined {
-  if (valor.length === 0) return 'Informe a senha.';
-  if (valor.trim().length !== valor.length) return 'A senha não pode começar ou terminar com espaço.';
-  if (valor.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
-  if (valor.length > 128) return 'A senha deve ter no máximo 128 caracteres.';
+export function validarSenha(senha: string): string | undefined {
+  if (senha.length < 8) {
+    return 'A senha deve ter pelo menos 8 caracteres.';
+  }
+
+  if (!/[A-Z]/.test(senha)) {
+    return 'A senha deve conter uma letra maiúscula.';
+  }
+
+  if (!/[0-9]/.test(senha)) {
+    return 'A senha deve conter um número.';
+  }
+
+  if (!/[^A-Za-z0-9]/.test(senha)) {
+    return 'A senha deve conter um caractere especial.';
+  }
+
+  if (senha.length > 128) {
+    return 'A senha deve ter no máximo 128 caracteres.';
+  }
+
+  if (senha.trim().length !== senha.length) {
+    return 'A senha não pode começar ou terminar com espaço.';
+  }
+
   return undefined;
 }
 
