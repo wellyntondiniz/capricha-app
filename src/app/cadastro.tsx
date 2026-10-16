@@ -46,6 +46,30 @@ export default function RegisterScreen() {
   const { valores, erros } = formulario;
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
+  const criteriosSenha = [
+    {
+      texto: 'Pelo menos 8 caracteres',
+      valido: valores.senha.length >= 8,
+    },
+    {
+      texto: 'Pelo menos uma letra maiúscula',
+      valido: /[A-Z]/.test(valores.senha),
+    },
+    {
+      texto: 'Pelo menos um número',
+      valido: /[0-9]/.test(valores.senha),
+    },
+    {
+      texto: 'Pelo menos um caractere especial',
+      valido: /[^A-Za-z0-9]/.test(valores.senha),
+    },
+    {
+      texto: 'As senhas são iguais',
+      valido:
+        valores.confirmarSenha.length > 0 &&
+        valores.senha === valores.confirmarSenha,
+    },
+  ];
 
   function alterar(campo: Campo, valor: string) {
     formulario.alterar(campo, valor);
@@ -148,6 +172,37 @@ export default function RegisterScreen() {
             placeholder="Digite sua senha novamente"
             secureTextEntry
           />
+
+          <View style={styles.criteriosContainer}>
+            <Text style={styles.criteriosTitulo}>
+              Critérios da senha
+            </Text>
+
+            {criteriosSenha.map((criterio, index) => (
+              <View
+                key={index}
+                style={styles.criterioItem}
+              >
+                <Text
+                  style={[
+                    styles.criterioIcone,
+                    criterio.valido && styles.criterioValido,
+                  ]}
+                >
+                  {criterio.valido ? '✓' : '○'}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.criterioTexto,
+                    criterio.valido && styles.criterioTextoValido,
+                  ]}
+                >
+                  {criterio.texto}
+                </Text>
+              </View>
+            ))}
+          </View>
 
           <Text style={styles.terms}>
             Ao criar sua conta, você concorda com nossos{' '}
@@ -317,5 +372,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#8B949E',
     fontSize: 12,
+  },
+
+  criteriosContainer: {
+    marginTop: 16,
+    marginBottom: 4,
+    gap: 8,
+  },
+
+  criteriosTitulo: {
+    color: '#E6EDF3',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+
+  criterioItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  criterioIcone: {
+    width: 18,
+    textAlign: 'center',
+    color: '#8B949E',
+    fontSize: 15,
+  },
+
+  criterioValido: {
+    color: '#3FB950',
+  },
+
+  criterioTexto: {
+    color: '#8B949E',
+    fontSize: 12,
+  },
+
+  criterioTextoValido: {
+    color: '#3FB950',
   },
 });
