@@ -107,7 +107,6 @@ export default function ListaPalestras() {
             }
             ListEmptyComponent={
               <View style={styles.estadoVazio}>
-                <Ionicons name="mic-outline" size={46} color={Cores.destaque} />
                 <Text style={styles.estadoTitulo}>Nenhuma palestra cadastrada</Text>
                 <Text style={styles.textoSuave}>Use o botão Nova para cadastrar uma palestra.</Text>
               </View>
