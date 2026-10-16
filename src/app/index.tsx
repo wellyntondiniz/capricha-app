@@ -91,6 +91,7 @@ export default function LoginScreen() {
             onSubmitEditing={handleLogin}
             placeholder="Digite sua senha"
             secureTextEntry
+            mostrarAlternarSenha
           />
 
           <Pressable onPress={() => router.push('/esqueci-senha')}>
