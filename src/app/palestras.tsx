@@ -58,7 +58,7 @@ export default function ListaPalestras() {
             accessibilityRole="button"
             accessibilityLabel="Voltar para a tela inicial"
             style={styles.voltar}
-            onPress={() => router.back()}>
+            onPress={() => router.replace('/home')}>
             <Ionicons name="arrow-back" size={22} color={Cores.texto} />
           </Pressable>
 

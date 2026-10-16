@@ -355,7 +355,14 @@ export default function CadastroPalestra() {
         {eventos.length === 0 ? (
           <View style={styles.avisoBox}>
             <Text style={styles.avisoText}>Nenhum evento cadastrado.</Text>
-            <Pressable onPress={() => router.push('/cadastro-evento')}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/cadastro-evento',
+                  params: { retorno: 'cadastro-palestra' },
+                })
+              }
+            >
               <Text style={styles.link}>Cadastrar um evento</Text>
             </Pressable>
           </View>
