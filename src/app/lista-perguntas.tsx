@@ -1,7 +1,6 @@
 import { Alternativa } from '@/services/alternativaService';
 import { Palestra } from '@/services/palestraService';
 import { listarPerguntas, Pergunta } from '@/services/perguntaService';
-import { erro } from '@/utils/notify';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
@@ -103,6 +102,16 @@ export default function ListarPerguntas() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
+          {/* Retornar */}
+            <TouchableOpacity
+              style={styles.botaoRetornar}
+              activeOpacity={0.7}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.botaoTexto}>
+                ← Retornar
+              </Text>
+            </TouchableOpacity>
           {/* Cabeçalho */}
           <View style={styles.logo}>
             <View style={styles.logoIcon}>
@@ -211,17 +220,6 @@ export default function ListarPerguntas() {
                 </View>
               ))
             )}
-
-            {/* Retornar */}
-            <TouchableOpacity
-              style={styles.botaoRetornar}
-              activeOpacity={0.7}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.botaoTexto}>
-                ← Retornar
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <Text style={styles.footer}>
@@ -465,14 +463,10 @@ const styles = StyleSheet.create({
   },
 
   botaoRetornar: {
-    width: '100%',
-    height: 42,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#7B1B38',
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
 
   botaoTexto: {
