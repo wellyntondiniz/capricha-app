@@ -5,6 +5,9 @@ import { useState } from 'react';
 import {
   Pressable,
   PressableStateCallbackType,
+  Image,
+  Pressable,
+  PressableStateCallbackType,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,11 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalLogout } from '@/components/modal-logout';
 import { Cores } from '@/constants/cores';
 import { useAuth } from '@/contexts/AuthContext';
+import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
-
-// TODO: trocar pelos dados reais do usuário quando existir login
-const usuario = { nome: 'Ana Souza', foto: null as string | null, notificacoesNaoLidas: 2 };
 
 const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string; rota: Href }[] = [
   { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho, rota: '/(tabs)/eventos' },
@@ -50,6 +51,7 @@ export default function HomeScreen() {
   const nomeCompleto = usuario?.nome || 'Participante';
   const primeiroNome = nomeCompleto.split(' ')[0];
   const notificacoesNaoLidas = 0;
+  const urlFoto = obterUrlFotoUsuario(usuario?.foto);
 
   const ehAdmin =
     usuario?.perfil?.toUpperCase() === 'ADMIN' ||
@@ -83,9 +85,13 @@ export default function HomeScreen() {
               accessibilityLabel="Abrir meu perfil"
               onPress={() => router.navigate('/(tabs)/perfil')}
               style={(state) => [styles.avatarBotao, estadoDoToque(state).pressed && styles.pressOpacidade]}>
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarTexto}>{iniciais(nomeCompleto)}</Text>
-              </View>
+              {urlFoto ? (
+                <Image source={{ uri: urlFoto }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarTexto}>{iniciais(nomeCompleto)}</Text>
+                </View>
+              )}
             </Pressable>
 
             <View style={styles.saudacao}>

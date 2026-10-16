@@ -1,11 +1,27 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 
+import { ModalFotoPerfil } from '@/components/modal-foto-perfil';
 import { ModalLogout } from '@/components/modal-logout';
 import { Cores } from '@/constants/cores';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  enviarFotoPerfil,
+  obterUrlFotoUsuario,
+  removerFotoPerfil,
+} from '@/services/usuarioService';
 
 function iniciais(nome: string) {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
@@ -15,9 +31,11 @@ function iniciais(nome: string) {
 }
 
 export default function PerfilScreen() {
-  const { usuario, deslogar } = useAuth();
+  const { usuario, deslogar, salvarSessao } = useAuth();
   const [modalLogoutVisivel, setModalLogoutVisivel] = useState(false);
+  const [modalFotoVisivel, setModalFotoVisivel] = useState(false);
   const [saindo, setSaindo] = useState(false);
+  const [carregandoFoto, setCarregandoFoto] = useState(false);
 
   const nome = usuario?.nome || 'Usuário';
   const email = usuario?.email || 'Sem e-mail';
@@ -25,6 +43,7 @@ export default function PerfilScreen() {
     usuario?.perfil?.toUpperCase() === 'ADMIN' ||
     usuario?.perfil?.toUpperCase() === 'ADMINISTRADOR';
   const perfil = ehAdmin ? 'Administrador' : 'Participante';
+  const urlFoto = obterUrlFotoUsuario(usuario?.foto);
 
   const confirmarLogout = async () => {
     setSaindo(true);
@@ -38,19 +57,138 @@ export default function PerfilScreen() {
     }
   };
 
-  function handleLogout() {
-    setModalLogoutVisivel(true);
-  }
+  const handleEscolherGaleria = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissao.granted) {
+          Toast.show({
+            type: 'error',
+            text1: 'Permissão necessária',
+            text2: 'Permita o acesso à galeria para escolher uma foto.',
+          });
+          return;
+        }
+      }
+
+      const resultado = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (!resultado.canceled && resultado.assets[0] && usuario?.id) {
+        setCarregandoFoto(true);
+        const usuarioAtualizado = await enviarFotoPerfil(usuario.id, resultado.assets[0]);
+        await salvarSessao(usuarioAtualizado);
+        setModalFotoVisivel(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Foto atualizada!',
+          text2: 'Sua foto de perfil foi alterada com sucesso.',
+        });
+      }
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Erro ao enviar foto',
+        text2: e instanceof Error ? e.message : 'Tente novamente.',
+      });
+    } finally {
+      setCarregandoFoto(false);
+    }
+  };
+
+  const handleTirarFoto = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const permissao = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permissao.granted) {
+          Toast.show({
+            type: 'error',
+            text1: 'Permissão necessária',
+            text2: 'Permita o acesso à câmera para tirar uma foto.',
+          });
+          return;
+        }
+      }
+
+      const resultado = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (!resultado.canceled && resultado.assets[0] && usuario?.id) {
+        setCarregandoFoto(true);
+        const usuarioAtualizado = await enviarFotoPerfil(usuario.id, resultado.assets[0]);
+        await salvarSessao(usuarioAtualizado);
+        setModalFotoVisivel(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Foto atualizada!',
+          text2: 'Sua foto de perfil foi alterada com sucesso.',
+        });
+      }
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Erro ao tirar foto',
+        text2: e instanceof Error ? e.message : 'Tente novamente.',
+      });
+    } finally {
+      setCarregandoFoto(false);
+    }
+  };
+
+  const handleRemoverFoto = async () => {
+    if (!usuario?.id) return;
+    try {
+      setCarregandoFoto(true);
+      const usuarioAtualizado = await removerFotoPerfil(usuario.id);
+      await salvarSessao(usuarioAtualizado);
+      setModalFotoVisivel(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Foto removida',
+        text2: 'Você voltou a usar suas iniciais.',
+      });
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Erro ao remover foto',
+        text2: e instanceof Error ? e.message : 'Tente novamente.',
+      });
+    } finally {
+      setCarregandoFoto(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.conteudo}>
-          {/* Header */}
+          {/* Header com Avatar Interativo */}
           <View style={styles.header}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarTexto}>{iniciais(nome)}</Text>
-            </View>
+            <Pressable
+              style={styles.avatarBotao}
+              onPress={() => setModalFotoVisivel(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Alterar foto de perfil"
+            >
+              {urlFoto ? (
+                <Image source={{ uri: urlFoto }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarTexto}>{iniciais(nome)}</Text>
+                </View>
+              )}
+              <View style={styles.badgeCamera}>
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+              </View>
+            </Pressable>
+
             <Text style={styles.nome}>{nome}</Text>
             <Text style={styles.email}>{email}</Text>
           </View>
@@ -91,13 +229,26 @@ export default function PerfilScreen() {
           {/* Botão Sair */}
           <Pressable
             style={({ pressed }) => [styles.botaoSair, pressed && styles.botaoSairPressionado]}
-            onPress={handleLogout}>
+            onPress={() => setModalLogoutVisivel(true)}
+          >
             <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
             <Text style={styles.botaoSairTexto}>Sair da conta</Text>
           </Pressable>
         </View>
       </ScrollView>
 
+      {/* Modal de Escolha da Foto */}
+      <ModalFotoPerfil
+        visivel={modalFotoVisivel}
+        aoEscolherGaleria={handleEscolherGaleria}
+        aoTirarFoto={handleTirarFoto}
+        aoRemoverFoto={handleRemoverFoto}
+        temFoto={!!urlFoto}
+        aoCancelar={() => setModalFotoVisivel(false)}
+        carregando={carregandoFoto}
+      />
+
+      {/* Modal de Confirmação de Logout */}
       <ModalLogout
         visivel={modalLogoutVisivel}
         aoConfirmar={confirmarLogout}
@@ -113,18 +264,36 @@ const styles = StyleSheet.create({
   scroll: { paddingTop: 24, paddingBottom: 32 },
   conteudo: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 20 },
   header: { alignItems: 'center', marginBottom: 28 },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Cores.vinho,
-    borderWidth: 2,
-    borderColor: Cores.destaque,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarBotao: {
+    position: 'relative',
     marginBottom: 14,
   },
-  avatarTexto: { color: '#FFFFFF', fontSize: 28, fontWeight: '700' },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: Cores.destaque,
+  },
+  avatarFallback: {
+    backgroundColor: Cores.vinho,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarTexto: { color: '#FFFFFF', fontSize: 32, fontWeight: '700' },
+  badgeCamera: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Cores.destaque,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Cores.fundo,
+  },
   nome: { color: Cores.texto, fontSize: 22, fontWeight: '700', textAlign: 'center' },
   email: { color: Cores.textoSuave, fontSize: 14, marginTop: 4, textAlign: 'center' },
   card: {
