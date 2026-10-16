@@ -7,6 +7,7 @@ export type Usuario = {
     email? : string;
     senha? : string;
     ativo? : boolean;
+    perfil? : string;
 }
 
 const URL = `${BASE_URL}/usuario`;

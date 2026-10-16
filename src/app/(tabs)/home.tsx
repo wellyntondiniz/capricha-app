@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { router, type Href, useRouter } from 'expo-router';
+
 import {
-    Image,
     Pressable,
     PressableStateCallbackType,
     ScrollView,
@@ -10,18 +12,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ModalLogout } from '@/components/modal-logout';
 import { Cores } from '@/constants/cores';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
 // TODO: trocar pelos dados reais do usuário quando existir login
 const usuario = { nome: 'Ana Souza', foto: null as string | null, notificacoesNaoLidas: 2 };
 
-const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string }[] = [
-  { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho },
-  { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro },
-  { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro },
-  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo },
+const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string; rota: Href }[] = [
+  { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho, rota: '/(tabs)/eventos' },
+  { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/(tabs)/eventos' },
+  { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro, rota: '/(tabs)/ranking' },
+  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
 ];
 
 function estadoDoToque(state: PressableStateCallbackType) {
@@ -30,17 +34,42 @@ function estadoDoToque(state: PressableStateCallbackType) {
 }
 
 function iniciais(nome: string) {
-  return nome
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0])
-    .join('')
-    .toUpperCase();
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return 'U';
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
 export default function HomeScreen() {
-  const primeiroNome = usuario.nome.split(' ')[0];
+  const { usuario, deslogar } = useAuth();
+  const router = useRouter();
+  const [modalLogoutVisivel, setModalLogoutVisivel] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+
+  const nomeCompleto = usuario?.nome || 'Participante';
+  const primeiroNome = nomeCompleto.split(' ')[0];
+  const notificacoesNaoLidas = 0;
+
+  const ehAdmin =
+    usuario?.perfil?.toUpperCase() === 'ADMIN' ||
+    usuario?.perfil?.toUpperCase() === 'ADMINISTRADOR';
+  const perfilFormatado = ehAdmin ? 'Administrador' : 'Participante';
+
+  const confirmarLogout = async () => {
+    setSaindo(true);
+    try {
+      await deslogar();
+    } catch (e) {
+      console.error('Erro ao encerrar sessão:', e);
+    } finally {
+      setSaindo(false);
+      setModalLogoutVisivel(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setModalLogoutVisivel(true);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -51,46 +80,69 @@ export default function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Abrir meu perfil"
-              onPress={() => {
-                /* TODO: navegar para o perfil quando a tela existir */
-              }}
+              onPress={() => router.navigate('/(tabs)/perfil')}
               style={(state) => [styles.avatarBotao, estadoDoToque(state).pressed && styles.pressOpacidade]}>
-              {usuario.foto ? (
-                <Image source={{ uri: usuario.foto }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarTexto}>{iniciais(usuario.nome)}</Text>
-                </View>
-              )}
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarTexto}>{iniciais(nomeCompleto)}</Text>
+              </View>
             </Pressable>
 
             <View style={styles.saudacao}>
-              <Text style={styles.ola} numberOfLines={1}>
-                Olá, {primeiroNome}! 👋
-              </Text>
+              <View style={styles.usuarioLinha}>
+                <Text style={styles.ola} numberOfLines={1}>
+                  Olá, {primeiroNome}!
+                </Text>
+                <View
+                  style={[
+                    styles.badgePerfil,
+                    ehAdmin ? styles.badgeAdmin : styles.badgeParticipante,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.badgePerfilTexto,
+                      ehAdmin ? styles.badgeAdminTexto : styles.badgeParticipanteTexto,
+                    ]}>
+                    {perfilFormatado}
+                  </Text>
+                </View>
+              </View>
               <Text style={styles.boasVindas} numberOfLines={2}>
                 Pronto para o próximo evento?
               </Text>
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                usuario.notificacoesNaoLidas > 0
-                  ? `Notificações, ${usuario.notificacoesNaoLidas} não lidas`
-                  : 'Notificações'
-              }
-              onPress={() => {
-                /* TODO: abrir notificações */
-              }}
-              style={(state) => [
-                styles.sino,
-                estadoDoToque(state).hovered && styles.sinoHover,
-                estadoDoToque(state).pressed && styles.pressOpacidade,
-              ]}>
-              <Ionicons name="notifications-outline" size={24} color={Cores.texto} />
-              {usuario.notificacoesNaoLidas > 0 && <View style={styles.sinoBadge} />}
-            </Pressable>
+            <View style={styles.acoesHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  notificacoesNaoLidas > 0
+                    ? `Notificações, ${notificacoesNaoLidas} não lidas`
+                    : 'Notificações'
+                }
+                onPress={() => {
+                  /* TODO: abrir notificações */
+                }}
+                style={(state) => [
+                  styles.botaoAcao,
+                  estadoDoToque(state).hovered && styles.botaoAcaoHover,
+                  estadoDoToque(state).pressed && styles.pressOpacidade,
+                ]}>
+                <Ionicons name="notifications-outline" size={22} color={Cores.texto} />
+                {notificacoesNaoLidas > 0 && <View style={styles.sinoBadge} />}
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sair da conta"
+                onPress={handleLogout}
+                style={(state) => [
+                  styles.botaoAcao,
+                  estadoDoToque(state).hovered && styles.botaoAcaoHover,
+                  estadoDoToque(state).pressed && styles.pressOpacidade,
+                ]}>
+                <Ionicons name="log-out-outline" size={22} color="#D9466F" />
+              </Pressable>
+            </View>
           </View>
 
           {/* Acesso rápido */}
@@ -103,9 +155,7 @@ export default function HomeScreen() {
                 key={item.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.titulo}. ${item.descricao}`}
-                onPress={() => {
-                  /* TODO: conectar à tela correspondente (fora do escopo desta história) */
-                }}
+                onPress={() => router.navigate(item.rota)}
                 style={(state) => {
                   const { pressed, hovered } = estadoDoToque(state);
                   return [
@@ -129,6 +179,13 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <ModalLogout
+        visivel={modalLogoutVisivel}
+        aoConfirmar={confirmarLogout}
+        aoCancelar={() => setModalLogoutVisivel(false)}
+        carregando={saindo}
+      />
     </SafeAreaView>
   );
 }
@@ -147,23 +204,60 @@ const styles = StyleSheet.create({
   avatarFallback: { backgroundColor: Cores.vinho, alignItems: 'center', justifyContent: 'center' },
   avatarTexto: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
   saudacao: { flex: 1 },
-  ola: { color: Cores.texto, fontSize: 20, fontWeight: '700' },
-  boasVindas: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20, marginTop: 2 },
-  sino: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  usuarioLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  ola: { color: Cores.texto, fontSize: 19, fontWeight: '700' },
+  badgePerfil: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignSelf: 'center',
+  },
+  badgePerfilTexto: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  badgeParticipante: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  badgeParticipanteTexto: {
+    color: Cores.textoSuave,
+  },
+  badgeAdmin: {
+    backgroundColor: 'rgba(217, 70, 111, 0.12)',
+    borderColor: 'rgba(217, 70, 111, 0.35)',
+  },
+  badgeAdminTexto: {
+    color: Cores.destaque,
+    fontWeight: '700',
+  },
+  boasVindas: { color: Cores.textoSuave, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  acoesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  botaoAcao: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Cores.superficie,
     borderWidth: 1,
     borderColor: Cores.borda,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sinoHover: { backgroundColor: Cores.superficieAlta },
+  botaoAcaoHover: { backgroundColor: Cores.superficieAlta },
   sinoBadge: {
     position: 'absolute',
-    top: 11,
-    right: 12,
+    top: 9,
+    right: 10,
     width: 10,
     height: 10,
     borderRadius: 5,

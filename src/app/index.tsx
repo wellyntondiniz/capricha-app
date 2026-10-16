@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CadastroPalestra from './cadastro-palestra';
 
 import { CampoFormulario } from '@/components/campo-formulario';
 import { Mensagem, MensagemFormulario } from '@/components/mensagem-formulario';
 import { MENSAGEM_CORRIJA_CAMPOS } from '@/constants/formulario';
+import { useAuth } from '@/contexts/AuthContext';
 import { useFormulario } from '@/hooks/use-formulario';
 import { ErroApi } from '@/services/erro-api';
 import { entrar } from '@/services/usuarioService';
@@ -25,6 +25,7 @@ function validarCampo(campo: Campo, valores: Record<Campo, string>): string | un
 }
 
 export default function LoginScreen() {
+  const { salvarSessao } = useAuth();
   const formulario = useFormulario<Campo>({ email: '', senha: '' }, validarCampo);
   const { valores, erros } = formulario;
   const [enviando, setEnviando] = useState(false);
@@ -48,7 +49,8 @@ export default function LoginScreen() {
     try {
       const usuario = await entrar(valores.email.trim(), valores.senha);
       formulario.limpar();
-      setMensagem({ texto: `Login realizado. Bem-vindo(a), ${usuario.nome}!`, tipo: 'sucesso' });
+      await salvarSessao(usuario);
+      router.replace('/(tabs)/home');
     } catch (erro) {
       if (erro instanceof ErroApi && formulario.definirErros(erro.campos)) {
         setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
