@@ -120,7 +120,7 @@ export default function ListaPalestras() {
                     <Image source={{ uri: imagem }} style={styles.imagem} resizeMode="cover" />
                   ) : (
                     <View style={[styles.imagem, styles.imagemFallback]}>
-                      <Ionicons name="mic" size={34} color={Cores.vinhoClaro} />
+                      <Ionicons name="image-outline" size={38} color={Cores.vinhoClaro} />
                     </View>
                   )}
 
