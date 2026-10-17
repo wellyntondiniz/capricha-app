@@ -169,6 +169,42 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          {/* Painel de missões e pontuação */}
+          <View
+            style={styles.painelMissoes}
+            accessible
+            accessibilityLabel="Painel de missões e pontuação: 250 pontos XP, 3º no ranking, 2 conquistas">
+            <View style={styles.painelMetricas}>
+              <View style={styles.metricaItem}>
+                <Ionicons name="star" size={28} color="#FBBF24" />
+                <View style={styles.metricaTextos}>
+                  <Text style={styles.metricaValor}>250</Text>
+                  <Text style={styles.metricaRotulo}>pontos (XP)</Text>
+                </View>
+              </View>
+
+              <View style={styles.metricaDivisor} />
+
+              <View style={styles.metricaItem}>
+                <Ionicons name="stats-chart" size={26} color={Cores.destaque} />
+                <View style={styles.metricaTextos}>
+                  <Text style={styles.metricaValor}>3º</Text>
+                  <Text style={styles.metricaRotulo}>no ranking</Text>
+                </View>
+              </View>
+
+              <View style={styles.metricaDivisor} />
+
+              <View style={styles.metricaItem}>
+                <Ionicons name="ribbon" size={28} color="#34D399" />
+                <View style={styles.metricaTextos}>
+                  <Text style={styles.metricaValor}>2</Text>
+                  <Text style={styles.metricaRotulo}>conquistas</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
           {/* Acesso rápido */}
           <Text accessibilityRole="header" style={styles.secaoTitulo}>
             Acesso rápido
@@ -288,6 +324,53 @@ const styles = StyleSheet.create({
     backgroundColor: Cores.destaque,
     borderWidth: 2,
     borderColor: Cores.superficie,
+  },
+
+  // Painel de missões e pontuação
+  painelMissoes: {
+    marginTop: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: Cores.vinhoProfundo,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 70, 111, 0.30)',
+    overflow: 'hidden',
+    shadowColor: Cores.vinhoProfundo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  painelMetricas: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metricaItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  metricaTextos: {
+    gap: 1,
+  },
+  metricaValor: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  metricaRotulo: {
+    color: 'rgba(242, 242, 244, 0.78)',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  metricaDivisor: {
+    width: 1,
+    height: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
 
   // Seção
