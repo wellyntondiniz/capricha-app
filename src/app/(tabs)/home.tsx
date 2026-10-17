@@ -20,13 +20,30 @@ import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
-const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; cor: string; rota: Href }[] = [
+type Atalho = {
+  id: string;
+  titulo: string;
+  descricao: string;
+  icone: Icone;
+  cor: string;
+  rota: Href;
+};
+
+const ATALHOS_ADMIN: Atalho[] = [
   { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho, rota: '/(tabs)/eventos' },
   { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/palestras' },
-  { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro, rota: '/(tabs)/ranking' },
-  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
-  { id: 'check-in', titulo: 'Check-in', descricao: 'Escaneie o QR Code e confirme sua presença', icone: 'qr-code', cor: Cores.vinho, rota: '/check-in' },
   { id: 'perguntas', titulo: 'Perguntas', descricao: 'Visualize todas as perguntas', icone: 'list', cor: Cores.vinhoProfundo, rota: '/lista-perguntas' },
+  { id: 'check-in-evento', titulo: 'Checkin do evento', descricao: 'Escaneie o QR Code e confirme sua presença', icone: 'qr-code', cor: Cores.vinho, rota: '/check-in' },
+  { id: 'check-in-palestras', titulo: 'Checkin das palestras', descricao: 'Confirme sua presença nas palestras do evento', icone: 'qr-code-outline', cor: Cores.vinhoClaro, rota: '/check-in-palestras' },
+];
+
+const ATALHOS_PARTICIPANTE: Atalho[] = [
+  { id: 'check-in-evento', titulo: 'Checkin do evento', descricao: 'Escaneie o QR Code e confirme sua presença', icone: 'qr-code', cor: Cores.vinho, rota: '/check-in' },
+  { id: 'check-in-palestras', titulo: 'Checkin das palestras', descricao: 'Confirme sua presença nas palestras do evento', icone: 'qr-code-outline', cor: Cores.vinhoEscuro, rota: '/check-in-palestras' },
+  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
+  { id: 'conectar-pessoas', titulo: 'Conectar Pessoas', descricao: 'Conecte-se com outros participantes do evento', icone: 'people', cor: Cores.vinhoClaro, rota: '/conectar-pessoas' },
+  { id: 'votar-poster', titulo: 'Votar em poster', descricao: 'Vote nos seus pôsteres favoritos do evento', icone: 'ribbon', cor: Cores.vinho, rota: '/votar-poster' },
+  { id: 'avaliar-aplicativo', titulo: 'Avaliar Aplicativo', descricao: 'Envie sua avaliação sobre o aplicativo', icone: 'star', cor: Cores.vinhoEscuro, rota: '/avaliar-aplicativo' },
 ];
 
 function estadoDoToque(state: PressableStateCallbackType) {
@@ -56,6 +73,7 @@ export default function HomeScreen() {
     usuario?.perfil?.toUpperCase() === 'ADMIN' ||
     usuario?.perfil?.toUpperCase() === 'ADMINISTRADOR';
   const perfilFormatado = ehAdmin ? 'Administrador' : 'Participante';
+  const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE;
 
   const confirmarLogout = async () => {
     setSaindo(true);
@@ -156,7 +174,7 @@ export default function HomeScreen() {
             Acesso rápido
           </Text>
           <View style={styles.lista}>
-            {ATALHOS.map((item) => (
+            {atalhos.map((item) => (
               <Pressable
                 key={item.id}
                 accessibilityRole="button"
