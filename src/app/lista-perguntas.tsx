@@ -1,3 +1,4 @@
+import { ThemedText } from '@/components/themed-text';
 import { Alternativa } from '@/services/alternativaService';
 import { Palestra } from '@/services/palestraService';
 import { deletarPerguntaById, listarPerguntas, Pergunta } from '@/services/perguntaService';
@@ -170,16 +171,17 @@ const confirmarExclusao = async () => {
         <View style={styles.container}>
           {/* Botões do cabeçalho */}
           <View style={styles.botoesCabecalho}>
-            {/* Retornar — esquerda */}
-            <TouchableOpacity
-              style={styles.botao}
-              activeOpacity={0.7}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.botaoTexto}>
-                ⇦
-              </Text>
-            </TouchableOpacity>
+            <Pressable
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                }
+              }}
+              hitSlop={8}>
+              <ThemedText themeColor="text" style={styles.voltar}>
+                {'← Voltar'}
+              </ThemedText>
+            </Pressable>
 
             {/* Adicionar — direita */}
             <TouchableOpacity
@@ -729,4 +731,10 @@ textoBotaoExcluir: {
   color: '#FFFFFF',
   fontWeight: 'bold',
 },
+
+voltar: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
 });
