@@ -168,16 +168,30 @@ const confirmarExclusao = async () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          {/* Retornar */}
+          {/* Botões do cabeçalho */}
+          <View style={styles.botoesCabecalho}>
+            {/* Retornar — esquerda */}
             <TouchableOpacity
-              style={styles.botaoRetornar}
+              style={styles.botao}
               activeOpacity={0.7}
               onPress={() => router.back()}
             >
               <Text style={styles.botaoTexto}>
-                ← Retornar
+                ⇦
               </Text>
             </TouchableOpacity>
+
+            {/* Adicionar — direita */}
+            <TouchableOpacity
+              style={styles.botao}
+              activeOpacity={0.7}
+              onPress={() => router.push("/cadastro-perguntas")}
+            >
+              <Text style={styles.botaoTexto}>
+                +
+              </Text>
+            </TouchableOpacity>
+          </View>
           {/* Cabeçalho */}
           <View style={styles.logo}>
             <View style={styles.logoIcon}>
@@ -586,17 +600,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  botaoRetornar: {
-    alignSelf: 'flex-start',
+  botoesCabecalho: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
     marginBottom: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  },
+
+  botao: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#7B1B38',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   botaoTexto: {
     color: '#E6EDF3',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: 'bold',
   },
 
   footer: {
