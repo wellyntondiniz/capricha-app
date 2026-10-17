@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -7,6 +7,7 @@ type Props = { onCodeScanned: (value: string) => void; onClose: () => void };
 export function QrScanner({ onCodeScanned, onClose }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const processingRef = useRef(false);
+  const [cameraError, setCameraError] = useState(false);
 
   const handleCodeScanned = useCallback(({ data }: { data: string }) => {
     if (processingRef.current || !data.trim()) return;
@@ -15,12 +16,13 @@ export function QrScanner({ onCodeScanned, onClose }: Props) {
   }, [onCodeScanned]);
 
   if (!permission) return <View style={styles.screen} />;
+  if (cameraError) return <View style={styles.permissionScreen}><Text style={styles.permissionTitle}>Não foi possível abrir a câmera</Text><Text style={styles.permissionText}>Verifique a permissão e se a câmera está sendo usada por outro aplicativo. Na web, utilize HTTPS ou localhost.</Text><Pressable onPress={onClose}><Text style={styles.cancelText}>Voltar</Text></Pressable></View>;
   if (!permission.granted) {
     return <View style={styles.permissionScreen}><Text style={styles.permissionTitle}>Permita o uso da câmera</Text><Text style={styles.permissionText}>Precisamos da câmera para ler o QR Code do evento.</Text><Pressable style={styles.primaryButton} onPress={requestPermission}><Text style={styles.primaryText}>Permitir câmera</Text></Pressable><Pressable onPress={onClose}><Text style={styles.cancelText}>Voltar</Text></Pressable></View>;
   }
 
   return <View style={styles.screen}>
-    <CameraView style={StyleSheet.absoluteFill} barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={handleCodeScanned} />
+    <CameraView style={StyleSheet.absoluteFill} barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={handleCodeScanned} onMountError={() => setCameraError(true)} />
     <View style={styles.overlay}><View style={styles.topBar}><Pressable style={styles.closeButton} onPress={onClose}><Text style={styles.closeText}>×</Text></Pressable><Text style={styles.topTitle}>Escanear QR Code</Text><View style={styles.topSpacer}/></View><View style={styles.scanFrame}/><Text style={styles.hint}>Posicione o QR Code dentro da moldura</Text></View>
   </View>;
 }
