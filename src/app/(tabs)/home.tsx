@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   Image,
@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalLogout } from '@/components/modal-logout';
 import { Cores } from '@/constants/cores';
 import { useAuth } from '@/contexts/AuthContext';
+import { listarEventos } from '@/services/eventoService';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
@@ -32,7 +33,6 @@ type Atalho = {
   icone: Icone;
   cor: string;
   rota: Href;
-  ordem?: number;
   xp?: string;
   status?: StatusMissao;
 };
@@ -48,7 +48,6 @@ const ATALHOS_ADMIN: Atalho[] = [
 const ATALHOS_PARTICIPANTE: Atalho[] = [
   {
     id: 'check-in-evento',
-    ordem: 1,
     titulo: 'Checkin do evento',
     descricao: 'Realize seu check-in no evento.',
     icone: 'ticket-outline',
@@ -59,29 +58,26 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
   },
   {
     id: 'check-in-palestras',
-    ordem: 2,
     titulo: 'Checkin das palestras',
     descricao: 'Registre sua presença em uma palestra.',
     icone: 'easel-outline',
-    cor: Cores.vinhoEscuro,
+    cor: Cores.vinhoClaro,
     rota: '/check-in-palestras',
     xp: '+50 XP',
     status: { tipo: 'progresso', atual: 1, total: 3, texto: '1 de 3 palestras' },
   },
   {
     id: 'quiz',
-    ordem: 3,
     titulo: 'Quiz',
     descricao: 'Responda às questões sobre o conteúdo.',
     icone: 'help-circle-outline',
-    cor: Cores.vinhoProfundo,
+    cor: Cores.destaque,
     rota: '/quiz',
     xp: '+100 XP',
     status: { tipo: 'progresso', atual: 2, total: 3, texto: '2 de 3 quizzes' },
   },
   {
     id: 'conectar-pessoas',
-    ordem: 4,
     titulo: 'Conectar Pessoas',
     descricao: 'Conecte-se com outros participantes do evento.',
     icone: 'people',
@@ -92,7 +88,6 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
   },
   {
     id: 'votar-poster',
-    ordem: 5,
     titulo: 'Votar em poster',
     descricao: 'Conheça os trabalhos e vote no seu favorito.',
     icone: 'document-text-outline',
@@ -103,7 +98,6 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
   },
   {
     id: 'avaliar-aplicativo',
-    ordem: 6,
     titulo: 'Avaliar Aplicativo',
     descricao: 'Responda ao questionário de avaliação do aplicativo.',
     icone: 'chatbubble-ellipses-outline',
@@ -131,6 +125,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [modalLogoutVisivel, setModalLogoutVisivel] = useState(false);
   const [saindo, setSaindo] = useState(false);
+  const [nomeEventoAtivo, setNomeEventoAtivo] = useState<string>('Semana de Computação');
 
   const nomeCompleto = usuario?.nome || 'Participante';
   const primeiroNome = nomeCompleto.split(' ')[0];
@@ -142,6 +137,27 @@ export default function HomeScreen() {
     usuario?.perfil?.toUpperCase() === 'ADMINISTRADOR';
   const perfilFormatado = ehAdmin ? 'Administrador' : 'Participante';
   const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE;
+
+  const totalMissoes = ATALHOS_PARTICIPANTE.length;
+  const missoesConcluidas = ATALHOS_PARTICIPANTE.filter(
+    (m) => m.status?.tipo === 'concluido'
+  ).length;
+
+  useEffect(() => {
+    let ativo = true;
+    listarEventos()
+      .then((lista) => {
+        if (ativo && lista.length > 0 && lista[0].nome) {
+          setNomeEventoAtivo(lista[0].nome);
+        }
+      })
+      .catch(() => {
+        // mantém fallback
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const confirmarLogout = async () => {
     setSaindo(true);
@@ -198,9 +214,19 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.boasVindas} numberOfLines={2}>
-                Pronto para o próximo evento?
-              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Evento ativo: ${nomeEventoAtivo}. Toque para ver eventos`}
+                onPress={() => router.navigate('/(tabs)/eventos')}
+                style={(state) => [
+                  styles.eventoAtivoLinha,
+                  estadoDoToque(state).pressed && styles.pressOpacidade,
+                ]}>
+                <Ionicons name="calendar-outline" size={13} color={Cores.destaque} />
+                <Text style={styles.boasVindas} numberOfLines={1}>
+                  {nomeEventoAtivo}
+                </Text>
+              </Pressable>
             </View>
 
             <View style={styles.acoesHeader}>
@@ -211,9 +237,7 @@ export default function HomeScreen() {
                     ? `Notificações, ${notificacoesNaoLidas} não lidas`
                     : 'Notificações'
                 }
-                onPress={() => {
-                  /* TODO: abrir notificações */
-                }}
+                onPress={() => router.navigate('/notificacoes')}
                 style={(state) => [
                   styles.botaoAcao,
                   estadoDoToque(state).hovered && styles.botaoAcaoHover,
@@ -253,13 +277,22 @@ export default function HomeScreen() {
 
               <View style={styles.metricaDivisor} />
 
-              <View style={styles.metricaItem}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="3º no ranking. Toque para abrir o ranking completo"
+                onPress={() => router.navigate('/(tabs)/ranking')}
+                style={(state) => [
+                  styles.metricaItem,
+                  styles.metricaItemInterativa,
+                  estadoDoToque(state).hovered && styles.metricaItemHover,
+                  estadoDoToque(state).pressed && styles.pressOpacidade,
+                ]}>
                 <Ionicons name="stats-chart" size={26} color={Cores.destaque} />
                 <View style={styles.metricaTextos}>
                   <Text style={styles.metricaValor}>3º</Text>
-                  <Text style={styles.metricaRotulo}>no ranking</Text>
+                  <Text style={styles.metricaRotulo}>no ranking ↗</Text>
                 </View>
-              </View>
+              </Pressable>
 
               <View style={styles.metricaDivisor} />
 
@@ -273,12 +306,28 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Acesso rápido / Missões */}
-          <Text accessibilityRole="header" style={styles.secaoTitulo}>
-            {ehAdmin ? 'Acesso rápido' : 'Missões do evento'}
-          </Text>
+          {/* Cabeçalho da seção */}
+          <View style={styles.secaoCabecalho}>
+            <Text accessibilityRole="header" style={styles.secaoTitulo}>
+              {ehAdmin ? 'Acesso rápido' : 'Missões do evento'}
+            </Text>
+            {!ehAdmin && (
+              <View style={styles.secaoProgressoBadge}>
+                <Ionicons name="checkmark-done" size={14} color={Cores.destaque} />
+                <Text style={styles.secaoProgressoTexto}>
+                  {missoesConcluidas} de {totalMissoes} concluídas
+                </Text>
+              </View>
+            )}
+          </View>
+
           <View style={styles.lista}>
             {atalhos.map((item) => {
+              const ehMissao = !ehAdmin && item.status !== undefined;
+              const concluida = item.status?.tipo === 'concluido';
+              const bloqueada = item.status?.tipo === 'bloqueado';
+              const emProgresso = item.status?.tipo === 'progresso';
+
               const progressoPercentual =
                 item.status?.tipo === 'progresso' && item.status.total > 0
                   ? Math.min(100, Math.round((item.status.atual / item.status.total) * 100))
@@ -294,31 +343,70 @@ export default function HomeScreen() {
                     const { pressed, hovered } = estadoDoToque(state);
                     return [
                       styles.card,
-                      { backgroundColor: item.cor, shadowColor: item.cor },
+                      ehMissao
+                        ? [
+                            styles.cardMissao,
+                            concluida && styles.cardMissaoConcluida,
+                            emProgresso && styles.cardMissaoEmProgresso,
+                            bloqueada && styles.cardMissaoBloqueada,
+                          ]
+                        : { backgroundColor: item.cor, shadowColor: item.cor },
                       hovered && styles.cardHover,
                       pressed && styles.cardPress,
                     ];
                   }}>
-                  <Ionicons name={item.icone} size={96} color="rgba(255,255,255,0.08)" style={styles.cardDecoracao} />
-
-                  {item.ordem !== undefined && (
-                    <View style={styles.missaoNumeroBadge}>
-                      <Text style={styles.missaoNumeroTexto}>{item.ordem}</Text>
-                    </View>
-                  )}
-
-                  <View style={styles.cardIconeBox}>
-                    <Ionicons name={item.icone} size={26} color="#FFFFFF" />
+                  <View
+                    style={[
+                      styles.cardIconeBox,
+                      ehMissao && {
+                        backgroundColor: concluida
+                          ? 'rgba(16, 185, 129, 0.16)'
+                          : bloqueada
+                          ? 'rgba(255, 255, 255, 0.06)'
+                          : Cores.vinhoSuave,
+                        borderWidth: 1,
+                        borderColor: concluida
+                          ? 'rgba(52, 211, 153, 0.35)'
+                          : bloqueada
+                          ? 'rgba(255, 255, 255, 0.10)'
+                          : 'rgba(217, 70, 111, 0.35)',
+                      },
+                    ]}>
+                    <Ionicons
+                      name={item.icone}
+                      size={26}
+                      color={
+                        ehMissao
+                          ? concluida
+                            ? '#34D399'
+                            : bloqueada
+                            ? Cores.textoSuave
+                            : Cores.destaque
+                          : '#FFFFFF'
+                      }
+                    />
                   </View>
 
                   <View style={styles.cardTextos}>
-                    <Text style={styles.cardTitulo}>{item.titulo}</Text>
-                    <Text style={styles.cardDescricao}>{item.descricao}</Text>
+                    <Text
+                      style={[
+                        styles.cardTitulo,
+                        bloqueada && styles.cardTituloBloqueado,
+                      ]}>
+                      {item.titulo}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.cardDescricao,
+                        ehMissao && styles.cardDescricaoMissao,
+                      ]}>
+                      {item.descricao}
+                    </Text>
 
                     {item.status?.tipo === 'concluido' && (
                       <View style={styles.badgeConcluido}>
                         <Text style={styles.badgeConcluidoTexto}>{item.status.texto}</Text>
-                        <Ionicons name="checkmark" size={13} color="#6EE7B7" />
+                        <Ionicons name="checkmark" size={13} color="#34D399" />
                       </View>
                     )}
 
@@ -338,7 +426,7 @@ export default function HomeScreen() {
 
                     {item.status?.tipo === 'bloqueado' && (
                       <View style={styles.badgeBloqueado}>
-                        <Ionicons name="lock-closed" size={12} color="rgba(255,255,255,0.85)" />
+                        <Ionicons name="lock-closed" size={12} color={Cores.textoSuave} />
                         <Text style={styles.badgeBloqueadoTexto}>{item.status.texto}</Text>
                       </View>
                     )}
@@ -346,11 +434,27 @@ export default function HomeScreen() {
 
                   <View style={styles.cardDireita}>
                     {item.xp !== undefined && (
-                      <View style={styles.xpBadge}>
-                        <Text style={styles.xpTexto}>{item.xp}</Text>
+                      <View
+                        style={[
+                          styles.xpBadge,
+                          concluida && styles.xpBadgeConcluido,
+                          bloqueada && styles.xpBadgeBloqueado,
+                        ]}>
+                        <Text
+                          style={[
+                            styles.xpTexto,
+                            concluida && styles.xpTextoConcluido,
+                            bloqueada && styles.xpTextoBloqueado,
+                          ]}>
+                          {item.xp}
+                        </Text>
                       </View>
                     )}
-                    <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                    <Ionicons
+                      name={bloqueada ? 'lock-closed-outline' : 'chevron-forward'}
+                      size={18}
+                      color={ehMissao ? Cores.textoSuave : '#FFFFFF'}
+                    />
                   </View>
                 </Pressable>
               );
@@ -416,7 +520,14 @@ const styles = StyleSheet.create({
     color: Cores.destaque,
     fontWeight: '700',
   },
-  boasVindas: { color: Cores.textoSuave, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  eventoAtivoLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  boasVindas: { color: Cores.textoSuave, fontSize: 13, lineHeight: 18, fontWeight: '500' },
   acoesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -453,7 +564,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: Cores.vinhoProfundo,
     borderWidth: 1,
-    borderColor: 'rgba(217, 70, 111, 0.30)',
+    borderColor: 'rgba(217, 70, 111, 0.35)',
     overflow: 'hidden',
     shadowColor: Cores.vinhoProfundo,
     shadowOffset: { width: 0, height: 8 },
@@ -472,6 +583,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+  },
+  metricaItemInterativa: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+  },
+  metricaItemHover: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   metricaTextos: {
     gap: 1,
@@ -493,18 +612,41 @@ const styles = StyleSheet.create({
   },
 
   // Seção
-  secaoTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700', marginTop: 20, marginBottom: 12 },
+  secaoCabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 22,
+    marginBottom: 12,
+  },
+  secaoTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700' },
+  secaoProgressoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 70, 111, 0.30)',
+  },
+  secaoProgressoTexto: {
+    color: Cores.textoSuave,
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
   // Lista vertical de cards horizontais
   lista: { flexDirection: 'column', gap: 12 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     minHeight: 96,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    borderRadius: 24,
+    borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
@@ -513,35 +655,37 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
   },
+  cardMissao: {
+    backgroundColor: Cores.superficie,
+    borderColor: Cores.borda,
+    shadowColor: Cores.sombra,
+  },
+  cardMissaoConcluida: {
+    borderColor: 'rgba(52, 211, 153, 0.32)',
+    backgroundColor: '#131A20',
+  },
+  cardMissaoEmProgresso: {
+    borderColor: 'rgba(169, 43, 80, 0.38)',
+  },
+  cardMissaoBloqueada: {
+    opacity: 0.68,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
   cardHover: { transform: [{ translateY: -2 }], shadowOpacity: 0.45 },
   cardPress: { transform: [{ scale: 0.98 }], shadowOpacity: 0.15, shadowRadius: 8, elevation: 2 },
-  cardDecoracao: { position: 'absolute', right: 24, bottom: -20 },
-  missaoNumeroBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(13, 16, 23, 0.38)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  missaoNumeroTexto: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
   cardIconeBox: {
-    width: 52,
-    height: 52,
+    width: 54,
+    height: 54,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTextos: { flex: 1, gap: 2 },
-  cardTitulo: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  cardTitulo: { color: Cores.texto, fontSize: 16, fontWeight: '700' },
+  cardTituloBloqueado: { color: Cores.textoSuave },
   cardDescricao: { color: '#FFFFFF', opacity: 0.9, fontSize: 13, lineHeight: 18 },
+  cardDescricaoMissao: { color: Cores.textoSuave, opacity: 1 },
   badgeConcluido: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -551,12 +695,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: 'rgba(16, 185, 129, 0.24)',
+    backgroundColor: 'rgba(16, 185, 129, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.5)',
+    borderColor: 'rgba(52, 211, 153, 0.40)',
   },
   badgeConcluidoTexto: {
-    color: '#A7F3D0',
+    color: '#6EE7B7',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -564,23 +708,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 7,
+    marginTop: 8,
     flexWrap: 'wrap',
   },
   progressoTrilha: {
-    width: 84,
+    width: 88,
     height: 7,
     borderRadius: 999,
-    backgroundColor: 'rgba(13, 16, 23, 0.42)',
+    backgroundColor: Cores.superficieAlta,
     overflow: 'hidden',
   },
   progressoPreenchimento: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Cores.destaque,
   },
   progressoTexto: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: Cores.textoSuave,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -593,12 +737,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(13, 16, 23, 0.35)',
+    backgroundColor: Cores.superficieAlta,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   badgeBloqueadoTexto: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: Cores.textoSuave,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -608,19 +752,33 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   xpBadge: {
-    minWidth: 64,
+    minWidth: 66,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: 'rgba(13, 16, 23, 0.32)',
+    backgroundColor: Cores.vinhoSuave,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(217, 70, 111, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  xpBadgeConcluido: {
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+  },
+  xpBadgeBloqueado: {
+    backgroundColor: Cores.superficieAlta,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
   xpTexto: {
-    color: '#FFFFFF',
+    color: Cores.destaque,
     fontSize: 13,
     fontWeight: '800',
+  },
+  xpTextoConcluido: {
+    color: '#34D399',
+  },
+  xpTextoBloqueado: {
+    color: Cores.textoSuave,
   },
 });
