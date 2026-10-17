@@ -20,6 +20,11 @@ import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
+type StatusMissao =
+  | { tipo: 'concluido'; texto: string }
+  | { tipo: 'progresso'; atual: number; total: number; texto: string }
+  | { tipo: 'bloqueado'; texto: string };
+
 type Atalho = {
   id: string;
   titulo: string;
@@ -27,6 +32,9 @@ type Atalho = {
   icone: Icone;
   cor: string;
   rota: Href;
+  ordem?: number;
+  xp?: string;
+  status?: StatusMissao;
 };
 
 const ATALHOS_ADMIN: Atalho[] = [
@@ -38,12 +46,72 @@ const ATALHOS_ADMIN: Atalho[] = [
 ];
 
 const ATALHOS_PARTICIPANTE: Atalho[] = [
-  { id: 'check-in-evento', titulo: 'Checkin do evento', descricao: 'Escaneie o QR Code e confirme sua presença', icone: 'qr-code', cor: Cores.vinho, rota: '/check-in' },
-  { id: 'check-in-palestras', titulo: 'Checkin das palestras', descricao: 'Confirme sua presença nas palestras do evento', icone: 'qr-code-outline', cor: Cores.vinhoEscuro, rota: '/check-in-palestras' },
-  { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
-  { id: 'conectar-pessoas', titulo: 'Conectar Pessoas', descricao: 'Conecte-se com outros participantes do evento', icone: 'people', cor: Cores.vinhoClaro, rota: '/conectar-pessoas' },
-  { id: 'votar-poster', titulo: 'Votar em poster', descricao: 'Vote nos seus pôsteres favoritos do evento', icone: 'ribbon', cor: Cores.vinho, rota: '/votar-poster' },
-  { id: 'avaliar-aplicativo', titulo: 'Avaliar Aplicativo', descricao: 'Envie sua avaliação sobre o aplicativo', icone: 'star', cor: Cores.vinhoEscuro, rota: '/avaliar-aplicativo' },
+  {
+    id: 'check-in-evento',
+    ordem: 1,
+    titulo: 'Checkin do evento',
+    descricao: 'Realize seu check-in no evento.',
+    icone: 'ticket-outline',
+    cor: Cores.vinho,
+    rota: '/check-in',
+    xp: '+50 XP',
+    status: { tipo: 'concluido', texto: 'Concluído!' },
+  },
+  {
+    id: 'check-in-palestras',
+    ordem: 2,
+    titulo: 'Checkin das palestras',
+    descricao: 'Registre sua presença em uma palestra.',
+    icone: 'easel-outline',
+    cor: Cores.vinhoEscuro,
+    rota: '/check-in-palestras',
+    xp: '+50 XP',
+    status: { tipo: 'progresso', atual: 1, total: 3, texto: '1 de 3 palestras' },
+  },
+  {
+    id: 'quiz',
+    ordem: 3,
+    titulo: 'Quiz',
+    descricao: 'Responda às questões sobre o conteúdo.',
+    icone: 'help-circle-outline',
+    cor: Cores.vinhoProfundo,
+    rota: '/quiz',
+    xp: '+100 XP',
+    status: { tipo: 'progresso', atual: 2, total: 3, texto: '2 de 3 quizzes' },
+  },
+  {
+    id: 'conectar-pessoas',
+    ordem: 4,
+    titulo: 'Conectar Pessoas',
+    descricao: 'Conecte-se com outros participantes do evento.',
+    icone: 'people',
+    cor: Cores.vinhoClaro,
+    rota: '/conectar-pessoas',
+    xp: '+150 XP',
+    status: { tipo: 'progresso', atual: 2, total: 3, texto: '2 de 3 conexões' },
+  },
+  {
+    id: 'votar-poster',
+    ordem: 5,
+    titulo: 'Votar em poster',
+    descricao: 'Conheça os trabalhos e vote no seu favorito.',
+    icone: 'document-text-outline',
+    cor: Cores.vinho,
+    rota: '/votar-poster',
+    xp: '+100 XP',
+    status: { tipo: 'progresso', atual: 0, total: 1, texto: '0 de 1 voto' },
+  },
+  {
+    id: 'avaliar-aplicativo',
+    ordem: 6,
+    titulo: 'Avaliar Aplicativo',
+    descricao: 'Responda ao questionário de avaliação do aplicativo.',
+    icone: 'chatbubble-ellipses-outline',
+    cor: Cores.vinhoEscuro,
+    rota: '/avaliar-aplicativo',
+    xp: '—',
+    status: { tipo: 'bloqueado', texto: 'Disponível ao final do evento' },
+  },
 ];
 
 function estadoDoToque(state: PressableStateCallbackType) {
@@ -205,37 +273,88 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Acesso rápido */}
+          {/* Acesso rápido / Missões */}
           <Text accessibilityRole="header" style={styles.secaoTitulo}>
-            Acesso rápido
+            {ehAdmin ? 'Acesso rápido' : 'Missões do evento'}
           </Text>
           <View style={styles.lista}>
-            {atalhos.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.titulo}. ${item.descricao}`}
-                onPress={() => router.navigate(item.rota)}
-                style={(state) => {
-                  const { pressed, hovered } = estadoDoToque(state);
-                  return [
-                    styles.card,
-                    { backgroundColor: item.cor, shadowColor: item.cor },
-                    hovered && styles.cardHover,
-                    pressed && styles.cardPress,
-                  ];
-                }}>
-                <Ionicons name={item.icone} size={96} color="rgba(255,255,255,0.10)" style={styles.cardDecoracao} />
-                <View style={styles.cardIconeBox}>
-                  <Ionicons name={item.icone} size={26} color="#FFFFFF" />
-                </View>
-                <View style={styles.cardTextos}>
-                  <Text style={styles.cardTitulo}>{item.titulo}</Text>
-                  <Text style={styles.cardDescricao}>{item.descricao}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
-              </Pressable>
-            ))}
+            {atalhos.map((item) => {
+              const progressoPercentual =
+                item.status?.tipo === 'progresso' && item.status.total > 0
+                  ? Math.min(100, Math.round((item.status.atual / item.status.total) * 100))
+                  : 0;
+
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.titulo}. ${item.descricao}`}
+                  onPress={() => router.navigate(item.rota)}
+                  style={(state) => {
+                    const { pressed, hovered } = estadoDoToque(state);
+                    return [
+                      styles.card,
+                      { backgroundColor: item.cor, shadowColor: item.cor },
+                      hovered && styles.cardHover,
+                      pressed && styles.cardPress,
+                    ];
+                  }}>
+                  <Ionicons name={item.icone} size={96} color="rgba(255,255,255,0.08)" style={styles.cardDecoracao} />
+
+                  {item.ordem !== undefined && (
+                    <View style={styles.missaoNumeroBadge}>
+                      <Text style={styles.missaoNumeroTexto}>{item.ordem}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.cardIconeBox}>
+                    <Ionicons name={item.icone} size={26} color="#FFFFFF" />
+                  </View>
+
+                  <View style={styles.cardTextos}>
+                    <Text style={styles.cardTitulo}>{item.titulo}</Text>
+                    <Text style={styles.cardDescricao}>{item.descricao}</Text>
+
+                    {item.status?.tipo === 'concluido' && (
+                      <View style={styles.badgeConcluido}>
+                        <Text style={styles.badgeConcluidoTexto}>{item.status.texto}</Text>
+                        <Ionicons name="checkmark" size={13} color="#6EE7B7" />
+                      </View>
+                    )}
+
+                    {item.status?.tipo === 'progresso' && (
+                      <View style={styles.progressoLinha}>
+                        <View style={styles.progressoTrilha}>
+                          <View
+                            style={[
+                              styles.progressoPreenchimento,
+                              { width: `${progressoPercentual}%` },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.progressoTexto}>{item.status.texto}</Text>
+                      </View>
+                    )}
+
+                    {item.status?.tipo === 'bloqueado' && (
+                      <View style={styles.badgeBloqueado}>
+                        <Ionicons name="lock-closed" size={12} color="rgba(255,255,255,0.85)" />
+                        <Text style={styles.badgeBloqueadoTexto}>{item.status.texto}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.cardDireita}>
+                    {item.xp !== undefined && (
+                      <View style={styles.xpBadge}>
+                        <Text style={styles.xpTexto}>{item.xp}</Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </ScrollView>
@@ -381,7 +500,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     minHeight: 96,
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -397,15 +516,111 @@ const styles = StyleSheet.create({
   cardHover: { transform: [{ translateY: -2 }], shadowOpacity: 0.45 },
   cardPress: { transform: [{ scale: 0.98 }], shadowOpacity: 0.15, shadowRadius: 8, elevation: 2 },
   cardDecoracao: { position: 'absolute', right: 24, bottom: -20 },
+  missaoNumeroBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(13, 16, 23, 0.38)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missaoNumeroTexto: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   cardIconeBox: {
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTextos: { flex: 1, gap: 2 },
-  cardTitulo: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
-  cardDescricao: { color: '#FFFFFF', opacity: 0.92, fontSize: 13, lineHeight: 18 },
+  cardTitulo: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  cardDescricao: { color: '#FFFFFF', opacity: 0.9, fontSize: 13, lineHeight: 18 },
+  badgeConcluido: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(16, 185, 129, 0.24)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.5)',
+  },
+  badgeConcluidoTexto: {
+    color: '#A7F3D0',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  progressoLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 7,
+    flexWrap: 'wrap',
+  },
+  progressoTrilha: {
+    width: 84,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(13, 16, 23, 0.42)',
+    overflow: 'hidden',
+  },
+  progressoPreenchimento: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+  },
+  progressoTexto: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  badgeBloqueado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(13, 16, 23, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  badgeBloqueadoTexto: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  cardDireita: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  xpBadge: {
+    minWidth: 64,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(13, 16, 23, 0.32)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  xpTexto: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
 });
