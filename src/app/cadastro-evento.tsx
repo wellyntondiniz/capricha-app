@@ -1,8 +1,10 @@
-import { EventoApiError, salvarEvento } from '@/services/eventoService';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +13,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Cores } from '@/constants/cores';
+import { EventoApiError, salvarEvento } from '@/services/eventoService';
 
 const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
@@ -74,6 +80,7 @@ export default function CadastroEvento() {
   const [horaInicio, setHoraInicio] = useState('');
   const [dataTermino, setDataTermino] = useState('');
   const [horaTermino, setHoraTermino] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   const formatarData = (texto: string) => {
     let valor = texto.replace(/\D/g, '');
@@ -89,6 +96,8 @@ export default function CadastroEvento() {
   };
 
   const cadastrarEvento = async () => {
+    if (salvando) return;
+
     if (!nome.trim()) {
       mostrarAlerta('Campo obrigatório', 'É necessário informar o nome do evento.');
       return;
@@ -154,6 +163,7 @@ export default function CadastroEvento() {
     }
 
     try {
+      setSalvando(true);
       await salvarEvento({
         nome: nome.trim(),
         descricao: descricao.trim(),
@@ -173,128 +183,209 @@ export default function CadastroEvento() {
     } catch (error) {
       const erro = error as EventoApiError;
       mostrarAlerta('Erro', erro.message || 'Não foi possível salvar o evento.');
+    } finally {
+      setSalvando(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        <Pressable style={styles.voltar} onPress={() => router.replace(destinoVolta)}>
-          <Text style={styles.voltarTexto}>‹ Voltar</Text>
-        </Pressable>
-        <Text style={styles.title}>Cadastro de evento</Text>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.pagina}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.cabecalho}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Voltar"
+              style={styles.botaoVoltar}
+              onPress={() => router.replace(destinoVolta)}>
+              <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+            </Pressable>
+            <View style={styles.titulos}>
+              <Text accessibilityRole="header" style={styles.tituloCabecalho}>
+                Cadastro de evento
+              </Text>
+              <Text style={styles.subtituloCabecalho}>
+                Preencha os dados para criar um novo evento
+              </Text>
+            </View>
+          </View>
 
-        <Text style={styles.label}>Nome do evento</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Digite o nome do evento"
-          placeholderTextColor="#777"
-          value={nome}
-          onChangeText={setNome}
-        />
-
-        <Text style={styles.label}>Descrição</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Digite a descrição do evento"
-          placeholderTextColor="#777"
-          value={descricao}
-          onChangeText={setDescricao}
-          multiline
-        />
-
-        <Text style={styles.label}>Início (opcional)</Text>
-        <View style={styles.row}>
-          <View style={styles.half}>
+          <View style={styles.card}>
+            <Text style={styles.label}>Nome do evento *</Text>
             <TextInput
               style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#777"
-              value={dataInicio}
-              onChangeText={(t) => setDataInicio(formatarData(t))}
+              placeholder="Ex: Semana Acadêmica de Computação"
+              placeholderTextColor={Cores.inativo}
+              value={nome}
+              onChangeText={setNome}
+              editable={!salvando}
             />
-          </View>
-          <View style={styles.half}>
-            <TextInput
-              style={styles.input}
-              placeholder="HH:mm"
-              placeholderTextColor="#777"
-              value={horaInicio}
-              onChangeText={(t) => setHoraInicio(formatarHora(t))}
-            />
-          </View>
-        </View>
 
-        <Text style={styles.label}>Término (opcional)</Text>
-        <View style={styles.row}>
-          <View style={styles.half}>
+            <Text style={styles.label}>Descrição</Text>
             <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#777"
-              value={dataTermino}
-              onChangeText={(t) => setDataTermino(formatarData(t))}
+              style={[styles.input, styles.textArea]}
+              placeholder="Digite a descrição do evento"
+              placeholderTextColor={Cores.inativo}
+              value={descricao}
+              onChangeText={setDescricao}
+              multiline
+              textAlignVertical="top"
+              editable={!salvando}
             />
-          </View>
-          <View style={styles.half}>
-            <TextInput
-              style={styles.input}
-              placeholder="HH:mm"
-              placeholderTextColor="#777"
-              value={horaTermino}
-              onChangeText={(t) => setHoraTermino(formatarHora(t))}
-            />
-          </View>
-        </View>
 
-        <Pressable style={styles.button} onPress={cadastrarEvento}>
-          <Text style={styles.buttonText}>Cadastrar</Text>
-        </Pressable>
+            <Text style={styles.label}>Início (opcional)</Text>
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor={Cores.inativo}
+                  value={dataInicio}
+                  onChangeText={(t) => setDataInicio(formatarData(t))}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                  editable={!salvando}
+                />
+              </View>
+              <View style={styles.half}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="HH:mm"
+                  placeholderTextColor={Cores.inativo}
+                  value={horaInicio}
+                  onChangeText={(t) => setHoraInicio(formatarHora(t))}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                  editable={!salvando}
+                />
+              </View>
+            </View>
 
-        <Pressable style={styles.linkBox} onPress={() => router.push('/eventos')}>
-          <Text style={styles.linkText}>Ver palestras por evento</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+            <Text style={styles.label}>Término (opcional)</Text>
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor={Cores.inativo}
+                  value={dataTermino}
+                  onChangeText={(t) => setDataTermino(formatarData(t))}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                  editable={!salvando}
+                />
+              </View>
+              <View style={styles.half}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="HH:mm"
+                  placeholderTextColor={Cores.inativo}
+                  value={horaTermino}
+                  onChangeText={(t) => setHoraTermino(formatarHora(t))}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                  editable={!salvando}
+                />
+              </View>
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                (pressed || salvando) && { opacity: 0.75 },
+              ]}
+              onPress={cadastrarEvento}
+              disabled={salvando}>
+              {salvando ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>Cadastrar evento</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.linkBox, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/eventos')}>
+              <Text style={styles.linkText}>Ver eventos cadastrados</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0E13' },
+  safe: { flex: 1, backgroundColor: Cores.fundo },
+  pagina: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
+  },
+  cabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+  },
+  botaoVoltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+  titulos: { flex: 1 },
+  tituloCabecalho: { color: Cores.texto, fontSize: 24, fontWeight: '700' },
+  subtituloCabecalho: { color: Cores.textoSuave, fontSize: 13, marginTop: 2 },
   card: {
-    margin: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#8E173D',
-    borderRadius: 12,
-    backgroundColor: '#101118',
+    borderColor: Cores.vinhoEscuro,
+    borderRadius: 16,
+    backgroundColor: Cores.superficie,
+    gap: 4,
   },
-  voltar: { alignSelf: 'flex-start', paddingVertical: 8, paddingRight: 12, marginBottom: 6 },
-  voltarTexto: { color: '#A92B50', fontSize: 14, fontWeight: '600' },
-  title: { color: '#FFFFFF', fontSize: 26, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
-  label: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 12 },
+  label: {
+    color: Cores.texto,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginTop: 12,
+  },
   input: {
-    height: 50,
+    minHeight: 48,
     borderWidth: 1,
-    borderColor: '#8E173D',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    color: '#FFFFFF',
-    backgroundColor: '#0D0E13',
+    borderColor: Cores.vinhoEscuro,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: Cores.texto,
+    backgroundColor: Cores.fundo,
     fontSize: 15,
   },
-  textArea: { height: 110, paddingTop: 15, textAlignVertical: 'top' },
+  textArea: { minHeight: 110, paddingTop: 12, textAlignVertical: 'top' },
   row: { flexDirection: 'row', gap: 10 },
   half: { flex: 1 },
   button: {
-    height: 52,
-    marginTop: 30,
-    borderRadius: 8,
-    backgroundColor: '#A71948',
+    minHeight: 50,
+    marginTop: 24,
+    borderRadius: 10,
+    backgroundColor: Cores.vinho,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonText: { color: '#FFFFFF', fontSize: 17, fontWeight: 'bold' },
-  linkBox: { marginTop: 16, alignItems: 'center' },
-  linkText: { color: '#A92B50', fontSize: 14 },
+  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  linkBox: { marginTop: 14, paddingVertical: 6, alignItems: 'center' },
+  linkText: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '600' },
 });

@@ -1,17 +1,4 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import {
-  Evento,
-  EventoApiError,
-  atualizarEvento,
-  cadastrarEvento,
-  desativarEvento,
-  listarEventos,
-  listarPalestrasDoEvento,
-} from '@/services/eventoService';
-import { Palestra, obterUrlImagemPalestra } from '@/services/palestraService';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -24,10 +11,24 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Cores } from '@/constants/cores';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Evento,
+  EventoApiError,
+  atualizarEvento,
+  cadastrarEvento,
+  desativarEvento,
+  listarEventos,
+  listarPalestrasDoEvento,
+} from '@/services/eventoService';
+import { Palestra, obterUrlImagemPalestra } from '@/services/palestraService';
 
 type FormState = {
   nome: string;
@@ -115,11 +116,14 @@ const isoParaHora = (iso?: string): string => {
 const formatarDataHora = (iso?: string): string => {
   const data = isoParaData(iso);
   const hora = isoParaHora(iso);
-  return `${data}${hora ? ' ' + hora : ''}`;
+  return `${data}${hora ? ' às ' + hora : ''}`;
 };
 
 export default function EventoScreen() {
-  const theme = useTheme();
+  const { usuario } = useAuth();
+  const ehAdmin =
+    usuario?.perfil?.toUpperCase() === 'ADMIN' ||
+    usuario?.perfil?.toUpperCase() === 'ADMINISTRADOR';
 
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -295,6 +299,7 @@ export default function EventoScreen() {
       await desativarEvento(itemSelecionado.id!);
       await carregar();
     } catch {
+      // ignora erro de exclusão
     } finally {
       setModalExcluir(false);
       setItemSelecionado(null);
@@ -303,61 +308,75 @@ export default function EventoScreen() {
 
   if (eventoAberto) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ThemedView style={styles.container}>
-          <View style={styles.header}>
-            <Pressable onPress={() => setEventoAberto(null)} hitSlop={8}>
-              <ThemedText themeColor="text" style={styles.voltar}>
-                {'← Voltar para eventos'}
-              </ThemedText>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.conteudo}>
+          <View style={styles.cabecalho}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Voltar para eventos"
+              onPress={() => setEventoAberto(null)}
+              style={styles.botaoVoltar}>
+              <Ionicons name="arrow-back" size={22} color={Cores.texto} />
             </Pressable>
+            <View style={styles.titulos}>
+              <Text style={styles.titulo} numberOfLines={1}>
+                {eventoAberto.nome}
+              </Text>
+              <Text style={styles.subtitulo}>Detalhes e programação do evento</Text>
+            </View>
           </View>
 
-          <View style={styles.detalhe}>
-            <ThemedText type="subtitle">{eventoAberto.nome}</ThemedText>
+          <View style={styles.cardDetalheEvento}>
             {!!eventoAberto.descricao && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {eventoAberto.descricao}
-              </ThemedText>
+              <Text style={styles.detalheDescricao}>{eventoAberto.descricao}</Text>
             )}
             {!!eventoAberto.dataInicio && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {formatarDataHora(eventoAberto.dataInicio)}
-                {eventoAberto.dataTermino ? ` até ${formatarDataHora(eventoAberto.dataTermino)}` : ''}
-              </ThemedText>
+              <View style={styles.metaLinha}>
+                <Ionicons name="calendar-outline" size={16} color={Cores.destaque} />
+                <Text style={styles.metaTexto}>
+                  {formatarDataHora(eventoAberto.dataInicio)}
+                  {eventoAberto.dataTermino ? ` até ${formatarDataHora(eventoAberto.dataTermino)}` : ''}
+                </Text>
+              </View>
             )}
             <Pressable
               onPress={() =>
                 router.push({ pathname: '/resumos', params: { eventoId: String(eventoAberto.id) } })
               }
-              style={styles.resumosBotao}
+              style={({ pressed }) => [styles.resumosBotao, pressed && { opacity: 0.8 }]}
               accessibilityRole="button">
-              <ThemedText type="smallBold" style={styles.resumosTexto}>
-                Ver resumos do evento
-              </ThemedText>
+              <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.resumosTexto}>Ver resumos do evento</Text>
             </Pressable>
-            <ThemedText type="smallBold" style={styles.tituloSecao}>
-              Palestras
-            </ThemedText>
           </View>
 
+          <Text style={styles.tituloSecao}>Palestras do evento</Text>
+
           {carregandoPalestras ? (
-            <ActivityIndicator size="large" style={styles.loader} />
+            <View style={styles.centralizado}>
+              <ActivityIndicator size="large" color={Cores.destaque} />
+              <Text style={styles.textoSuave}>Carregando palestras...</Text>
+            </View>
           ) : (
             <FlatList
               data={palestras}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.lista}
+              contentContainerStyle={palestras.length === 0 ? styles.listaVazia : styles.lista}
+              showsVerticalScrollIndicator={false}
               ListEmptyComponent={
-                <View style={styles.vazio}>
-                  <ThemedText type="smallBold">Este evento não possui palestras cadastradas.</ThemedText>
+                <View style={styles.estadoVazio}>
+                  <Ionicons name="mic-off-outline" size={38} color={Cores.vinhoClaro} />
+                  <Text style={styles.estadoTitulo}>Nenhuma palestra neste evento</Text>
+                  <Text style={styles.textoSuave}>
+                    Este evento ainda não possui palestras cadastradas.
+                  </Text>
                 </View>
               }
               renderItem={({ item }) => {
                 const urlImagem = obterUrlImagemPalestra(item.imagem);
 
                 return (
-                  <ThemedView type="backgroundElement" style={styles.cardPalestra}>
+                  <View style={styles.cardPalestra}>
                     {urlImagem ? (
                       <Image
                         source={{ uri: urlImagem }}
@@ -366,261 +385,306 @@ export default function EventoScreen() {
                       />
                     ) : (
                       <View style={styles.imagemSemImagem}>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          Sem imagem
-                        </ThemedText>
+                        <Ionicons name="image-outline" size={36} color={Cores.vinhoClaro} />
                       </View>
                     )}
-                    <ThemedText type="smallBold">{item.nome}</ThemedText>
-                    {!!item.descricao && (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {item.descricao}
-                      </ThemedText>
-                    )}
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Palestrante: {item.palestrante}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {item.data} às {item.horario}
-                    </ThemedText>
-                  </ThemedView>
+                    <View style={styles.cardPalestraCorpo}>
+                      <Text style={styles.cardTitulo}>{item.nome}</Text>
+                      {!!item.descricao && (
+                        <Text style={styles.cardDescricao}>{item.descricao}</Text>
+                      )}
+                      <View style={styles.metaLinha}>
+                        <Ionicons name="person-outline" size={15} color={Cores.textoSuave} />
+                        <Text style={styles.metaTexto}>{item.palestrante}</Text>
+                      </View>
+                      <View style={styles.metaLinha}>
+                        <Ionicons name="time-outline" size={15} color={Cores.textoSuave} />
+                        <Text style={styles.metaTexto}>
+                          {item.data} às {item.horario}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 );
               }}
             />
           )}
-        </ThemedView>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ThemedView style={styles.container}>
-        <View style={styles.header}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.conteudo}>
+        {/* Cabeçalho no padrão do projeto */}
+        <View style={styles.cabecalho}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();
+              } else {
+                router.replace('/(tabs)/home');
               }
             }}
-            hitSlop={8}>
-            <ThemedText themeColor="text" style={styles.voltar}>
-              {'← Voltar'}
-            </ThemedText>
+            style={styles.botaoVoltar}>
+            <Ionicons name="arrow-back" size={22} color={Cores.texto} />
           </Pressable>
-          <ThemedText type="subtitle">Eventos</ThemedText>
-          <Pressable onPress={abrirNovo} style={styles.novoBotao}>
-            <ThemedText style={styles.novoTexto}>+ Novo</ThemedText>
-          </Pressable>
+
+          <View style={styles.titulos}>
+            <Text accessibilityRole="header" style={styles.titulo}>
+              Eventos
+            </Text>
+            <Text style={styles.subtitulo}>
+              {ehAdmin ? 'Gerencie e consulte os eventos cadastrados' : 'Consulte os eventos disponíveis'}
+            </Text>
+          </View>
+
+          {ehAdmin && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cadastrar novo evento"
+              onPress={abrirNovo}
+              style={({ pressed }) => [styles.novoBotao, pressed && { opacity: 0.8 }]}>
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+              <Text style={styles.novoTexto}>Novo</Text>
+            </Pressable>
+          )}
         </View>
 
-        <View style={styles.pesquisaContainer}>
+        {/* Barra de pesquisa */}
+        <View style={styles.pesquisaBox}>
+          <Ionicons name="search-outline" size={18} color={Cores.inativo} />
           <TextInput
-            style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
-            placeholder="Pesquisar evento..."
+            style={styles.pesquisaInput}
+            placeholder="Pesquisar evento pelo nome..."
             value={pesquisa}
             onChangeText={setPesquisa}
-            placeholderTextColor={theme.textSecondary}
+            placeholderTextColor={Cores.inativo}
           />
+          {pesquisa.length > 0 && (
+            <Pressable onPress={() => setPesquisa('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={Cores.inativo} />
+            </Pressable>
+          )}
         </View>
 
         {carregando ? (
-          <ActivityIndicator size="large" style={styles.loader} />
+          <View style={styles.centralizado}>
+            <ActivityIndicator size="large" color={Cores.destaque} />
+            <Text style={styles.textoSuave}>Carregando eventos...</Text>
+          </View>
         ) : erroCarregar ? (
-          <View style={styles.vazio}>
-            <ThemedText themeColor="textSecondary">{erroCarregar}</ThemedText>
+          <View style={styles.estadoVazio}>
+            <Ionicons name="cloud-offline-outline" size={42} color={Cores.destaque} />
+            <Text style={styles.estadoTitulo}>Não foi possível carregar</Text>
+            <Text style={styles.textoSuave}>{erroCarregar}</Text>
+            <Pressable style={styles.tentarNovamente} onPress={carregar}>
+              <Text style={styles.tentarNovamenteTexto}>Tentar novamente</Text>
+            </Pressable>
           </View>
         ) : (
           <FlatList
             data={eventosFiltrados}
             keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={styles.lista}
+            contentContainerStyle={eventosFiltrados.length === 0 ? styles.listaVazia : styles.lista}
+            showsVerticalScrollIndicator={false}
             ListEmptyComponent={
-              <View style={styles.vazio}>
-                <ThemedText type="smallBold">Nenhum evento cadastrado.</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Toque em &quot;+ Novo&quot; para adicionar.
-                </ThemedText>
+              <View style={styles.estadoVazio}>
+                <Ionicons name="calendar-outline" size={42} color={Cores.vinhoClaro} />
+                <Text style={styles.estadoTitulo}>Nenhum evento encontrado</Text>
+                <Text style={styles.textoSuave}>
+                  {ehAdmin
+                    ? 'Toque no botão "+ Novo" no topo para cadastrar um evento.'
+                    : 'Não há eventos disponíveis no momento.'}
+                </Text>
               </View>
             }
             renderItem={({ item }) => (
-              <ThemedView type="backgroundElement" style={styles.card}>
-                <Pressable style={styles.cardInfo} onPress={() => abrirEvento(item)}>
-                  <ThemedText type="smallBold">{item.nome}</ThemedText>
+              <View style={styles.card}>
+                <Pressable
+                  style={({ pressed }) => [styles.cardInfo, pressed && { opacity: 0.85 }]}
+                  onPress={() => abrirEvento(item)}>
+                  <View style={styles.cardTopo}>
+                    <View style={styles.iconeEventoBox}>
+                      <Ionicons name="calendar" size={22} color={Cores.destaque} />
+                    </View>
+                    <View style={styles.cardTextos}>
+                      <Text style={styles.cardTitulo}>{item.nome}</Text>
+                      {!!item.dataInicio ? (
+                        <View style={styles.metaLinha}>
+                          <Ionicons name="time-outline" size={14} color={Cores.textoSuave} />
+                          <Text style={styles.metaTexto}>
+                            {formatarDataHora(item.dataInicio)}
+                            {item.dataTermino ? ` até ${formatarDataHora(item.dataTermino)}` : ''}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.metaTexto}>Data a definir</Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Cores.textoSuave} />
+                  </View>
+
                   {!!item.descricao && (
-                    <ThemedText type="small" themeColor="textSecondary">
+                    <Text style={styles.cardDescricao} numberOfLines={2}>
                       {item.descricao}
-                    </ThemedText>
-                  )}
-                  {!!item.dataInicio && (
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {formatarDataHora(item.dataInicio)}
-                      {item.dataTermino ? ` até ${formatarDataHora(item.dataTermino)}` : ''}
-                    </ThemedText>
+                    </Text>
                   )}
                 </Pressable>
-                <View style={styles.cardAcoes}>
-                  <Pressable
-                    onPress={() => abrirEditar(item)}
-                    style={({ pressed }) => [styles.editarBtn, pressed && { opacity: 0.7 }]}>
-                    <ThemedText type="small" style={styles.editarTexto}>
-                      Editar
-                    </ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      setItemSelecionado(item);
-                      setModalExcluir(true);
-                    }}
-                    style={({ pressed }) => [styles.excluirBtn, pressed && { opacity: 0.7 }]}>
-                    <ThemedText type="small" style={styles.excluirTexto}>
-                      Excluir
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              </ThemedView>
+
+                {ehAdmin && (
+                  <View style={styles.cardAcoes}>
+                    <Pressable
+                      onPress={() => abrirEditar(item)}
+                      style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}>
+                      <Ionicons name="create-outline" size={16} color={Cores.vinhoClaro} />
+                      <Text style={styles.editarTexto}>Editar</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setItemSelecionado(item);
+                        setModalExcluir(true);
+                      }}
+                      style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}>
+                      <Ionicons name="trash-outline" size={16} color="#E5484D" />
+                      <Text style={styles.excluirTexto}>Excluir</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
             )}
           />
         )}
 
-        {/* Modal de formulário */}
+        {/* Modal de cadastro / edição de evento */}
         <Modal
           visible={modalVisivel}
-          animationType="slide"
+          animationType="fade"
           transparent
           onRequestClose={() => setModalVisivel(false)}>
           <KeyboardAvoidingView
             style={styles.overlay}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <ScrollView contentContainerStyle={styles.overlayScroll} keyboardShouldPersistTaps="handled">
-              <ThemedView style={styles.modal}>
-                <ThemedText type="subtitle" style={styles.modalTitulo}>
-                  {editandoId !== null ? 'Editar evento' : 'Novo evento'}
-                </ThemedText>
+            <ScrollView
+              contentContainerStyle={styles.overlayScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+              <View style={styles.modal}>
+                <View style={styles.modalCabecalho}>
+                  <View style={styles.modalIconeTitulo}>
+                    <Ionicons name="calendar" size={20} color={Cores.destaque} />
+                  </View>
+                  <Text style={styles.modalTitulo}>
+                    {editandoId !== null ? 'Editar evento' : 'Novo evento'}
+                  </Text>
+                  <Pressable
+                    onPress={() => setModalVisivel(false)}
+                    hitSlop={8}
+                    style={styles.modalFechar}>
+                    <Ionicons name="close" size={22} color={Cores.textoSuave} />
+                  </Pressable>
+                </View>
 
-                <ThemedText type="smallBold" style={styles.label}>
-                  Nome *
-                </ThemedText>
+                <Text style={styles.label}>Nome do evento *</Text>
                 <TextInput
-                  style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                  style={styles.input}
                   value={form.nome}
                   onChangeText={(v) => setForm((f) => ({ ...f, nome: v }))}
                   placeholder="Ex: Semana Acadêmica de Computação"
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={Cores.inativo}
                   autoCapitalize="sentences"
                 />
 
-                <ThemedText type="smallBold" style={styles.label}>
-                  Descrição
-                </ThemedText>
+                <Text style={styles.label}>Descrição</Text>
                 <TextInput
-                  style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                  style={[styles.input, styles.textArea]}
                   value={form.descricao}
                   onChangeText={(v) => setForm((f) => ({ ...f, descricao: v }))}
-                  placeholder="Digite uma descrição"
-                  placeholderTextColor={theme.textSecondary}
+                  placeholder="Descreva os detalhes do evento"
+                  placeholderTextColor={Cores.inativo}
                   autoCapitalize="sentences"
                   multiline
+                  textAlignVertical="top"
                 />
 
-                <ThemedText type="smallBold" style={styles.label}>
-                  Início (opcional)
-                </ThemedText>
+                <Text style={styles.label}>Início (opcional)</Text>
                 <View style={styles.linhaDataHora}>
                   <TextInput
-                    style={[
-                      styles.input,
-                      styles.inputData,
-                      { borderColor: theme.backgroundSelected, color: theme.text },
-                    ]}
+                    style={[styles.input, styles.inputData]}
                     value={form.dataInicio}
                     onChangeText={(v) => setForm((f) => ({ ...f, dataInicio: formatarData(v) }))}
-                    placeholder="dd/mm/aaaa"
-                    placeholderTextColor={theme.textSecondary}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={Cores.inativo}
                     keyboardType="numbers-and-punctuation"
                     maxLength={10}
                   />
                   <TextInput
-                    style={[
-                      styles.input,
-                      styles.inputHora,
-                      { borderColor: theme.backgroundSelected, color: theme.text },
-                    ]}
+                    style={[styles.input, styles.inputHora]}
                     value={form.horaInicio}
                     onChangeText={(v) => setForm((f) => ({ ...f, horaInicio: formatarHora(v) }))}
-                    placeholder="hh:mm"
-                    placeholderTextColor={theme.textSecondary}
+                    placeholder="HH:MM"
+                    placeholderTextColor={Cores.inativo}
                     keyboardType="numbers-and-punctuation"
                     maxLength={5}
                   />
                 </View>
 
-                <ThemedText type="smallBold" style={styles.label}>
-                  Término (opcional)
-                </ThemedText>
+                <Text style={styles.label}>Término (opcional)</Text>
                 <View style={styles.linhaDataHora}>
                   <TextInput
-                    style={[
-                      styles.input,
-                      styles.inputData,
-                      { borderColor: theme.backgroundSelected, color: theme.text },
-                    ]}
+                    style={[styles.input, styles.inputData]}
                     value={form.dataTermino}
                     onChangeText={(v) => setForm((f) => ({ ...f, dataTermino: formatarData(v) }))}
-                    placeholder="dd/mm/aaaa"
-                    placeholderTextColor={theme.textSecondary}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={Cores.inativo}
                     keyboardType="numbers-and-punctuation"
                     maxLength={10}
                   />
                   <TextInput
-                    style={[
-                      styles.input,
-                      styles.inputHora,
-                      { borderColor: theme.backgroundSelected, color: theme.text },
-                    ]}
+                    style={[styles.input, styles.inputHora]}
                     value={form.horaTermino}
                     onChangeText={(v) => setForm((f) => ({ ...f, horaTermino: formatarHora(v) }))}
-                    placeholder="hh:mm"
-                    placeholderTextColor={theme.textSecondary}
+                    placeholder="HH:MM"
+                    placeholderTextColor={Cores.inativo}
                     keyboardType="numbers-and-punctuation"
                     maxLength={5}
                   />
                 </View>
 
                 {!!erroForm && (
-                  <ThemedText type="small" style={styles.erroTexto}>
-                    {erroForm}
-                  </ThemedText>
+                  <View style={styles.erroBox}>
+                    <Ionicons name="alert-circle-outline" size={18} color="#FF6B70" />
+                    <Text style={styles.erroTexto}>{erroForm}</Text>
+                  </View>
                 )}
 
                 <View style={styles.modalAcoes}>
                   <Pressable
                     onPress={() => setModalVisivel(false)}
-                    style={({ pressed }) => [
-                      styles.cancelarBtn,
-                      { borderColor: theme.backgroundSelected },
-                      pressed && { opacity: 0.7 },
-                    ]}>
-                    <ThemedText type="smallBold">Cancelar</ThemedText>
+                    disabled={salvando}
+                    style={({ pressed }) => [styles.cancelarBtn, pressed && { opacity: 0.7 }]}>
+                    <Text style={styles.cancelarTexto}>Cancelar</Text>
                   </Pressable>
                   <Pressable
                     onPress={salvar}
                     disabled={salvando}
                     style={({ pressed }) => [
                       styles.salvarBtn,
-                      { backgroundColor: theme.text },
                       (pressed || salvando) && { opacity: 0.7 },
                     ]}>
                     {salvando ? (
-                      <ActivityIndicator color={theme.background} size="small" />
+                      <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
-                      <ThemedText type="smallBold" style={{ color: theme.background }}>
-                        Salvar
-                      </ThemedText>
+                      <Text style={styles.salvarTexto}>
+                        {editandoId !== null ? 'Salvar alterações' : 'Cadastrar evento'}
+                      </Text>
                     )}
                   </Pressable>
                 </View>
-              </ThemedView>
+              </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
@@ -632,240 +696,313 @@ export default function EventoScreen() {
           animationType="fade"
           onRequestClose={() => setModalExcluir(false)}>
           <View style={styles.modalExcluirOverlay}>
-            <ThemedView style={styles.modalExcluirContainer}>
-              <ThemedText type="smallBold">Confirmar exclusão</ThemedText>
-              <ThemedText type="small">
-                Deseja realmente excluir{' '}
-                <ThemedText type="smallBold">{itemSelecionado?.nome}</ThemedText>?
-              </ThemedText>
+            <View style={styles.modalExcluirContainer}>
+              <Text style={styles.modalExcluirTitulo}>Excluir evento?</Text>
+              <Text style={styles.modalExcluirTexto}>
+                Deseja realmente excluir o evento{' '}
+                <Text style={styles.modalExcluirDestaque}>{itemSelecionado?.nome}</Text>?
+              </Text>
 
               <View style={styles.modalExcluirAcoes}>
                 <Pressable
-                  style={[styles.modalExcluirCancelar, { backgroundColor: theme.backgroundSelected }]}
+                  style={({ pressed }) => [styles.cancelarBtn, pressed && { opacity: 0.7 }]}
                   onPress={() => setModalExcluir(false)}>
-                  <ThemedText type="smallBold">Cancelar</ThemedText>
+                  <Text style={styles.cancelarTexto}>Cancelar</Text>
                 </Pressable>
-                <Pressable style={styles.modalExcluirConfirmar} onPress={confirmarExclusao}>
-                  <ThemedText type="smallBold" style={{ color: '#ffffff' }}>
-                    Excluir
-                  </ThemedText>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalExcluirConfirmar,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  onPress={confirmarExclusao}>
+                  <Text style={styles.salvarTexto}>Excluir</Text>
                 </Pressable>
               </View>
-            </ThemedView>
+            </View>
           </View>
         </Modal>
-      </ThemedView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  voltar: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  novoBotao: {
-    backgroundColor: '#A71948',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
-  },
-  novoTexto: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  loader: {
-    flex: 1,
-    alignSelf: 'center',
-  },
-  lista: {
-    padding: Spacing.three,
-    gap: Spacing.two,
-    flexGrow: 1,
-  },
-  vazio: {
-    flex: 1,
+  safe: { flex: 1, backgroundColor: Cores.fundo },
+  conteudo: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 20 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  botaoVoltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: Spacing.six,
-    gap: Spacing.one,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
   },
-  card: {
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+  titulos: { flex: 1 },
+  titulo: { color: Cores.texto, fontSize: 24, fontWeight: '700' },
+  subtitulo: { color: Cores.textoSuave, fontSize: 13, marginTop: 2 },
+  novoBotao: {
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
+    gap: 4,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: Cores.vinho,
   },
-  cardInfo: {
+  novoTexto: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+
+  pesquisaBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 48,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    marginBottom: 14,
+  },
+  pesquisaInput: {
     flex: 1,
-    gap: 2,
+    color: Cores.texto,
+    fontSize: 15,
+    height: '100%',
   },
+
+  centralizado: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  lista: { gap: 14, paddingBottom: 32 },
+  listaVazia: { flexGrow: 1, justifyContent: 'center', paddingBottom: 48 },
+
+  estadoVazio: {
+    alignItems: 'center',
+    padding: 28,
+    borderRadius: 18,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    gap: 6,
+  },
+  estadoTitulo: { color: Cores.texto, fontSize: 17, fontWeight: '700', textAlign: 'center', marginTop: 6 },
+  textoSuave: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  tentarNovamente: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Cores.vinhoClaro,
+  },
+  tentarNovamenteTexto: { color: Cores.vinhoClaro, fontWeight: '700' },
+
+  card: {
+    borderRadius: 16,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    padding: 16,
+    gap: 12,
+  },
+  cardInfo: { gap: 10 },
+  cardTopo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconeEventoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Cores.vinhoSuave,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 70, 111, 0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTextos: { flex: 1, gap: 3 },
+  cardTitulo: { color: Cores.texto, fontSize: 17, fontWeight: '700' },
+  cardDescricao: { color: Cores.textoSuave, fontSize: 13, lineHeight: 19 },
+  metaLinha: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaTexto: { color: Cores.textoSuave, fontSize: 13 },
+
   cardAcoes: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    justifyContent: 'flex-end',
+    gap: 18,
+    borderTopWidth: 1,
+    borderTopColor: Cores.borda,
+    paddingTop: 10,
   },
-  editarBtn: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-  },
-  editarTexto: {
-    color: '#A92B50',
-  },
-  excluirBtn: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-  },
-  excluirTexto: {
-    color: '#e53935',
-  },
-  detalhe: {
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.one,
-  },
-  tituloSecao: {
-    marginTop: Spacing.three,
-  },
-  resumosBotao: {
-    alignSelf: 'flex-start',
-    marginTop: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
-    backgroundColor: '#A71948',
-  },
-  resumosTexto: {
-    color: '#ffffff',
-  },
-  cardPalestra: {
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: 2,
-  },
-  imagemPalestra: {
-    width: '100%',
-    height: 220,
-    borderRadius: Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  imagemSemImagem: {
-    width: '100%',
-    height: 220,
-    borderRadius: Spacing.two,
-    marginBottom: Spacing.two,
+  acaoBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 2 },
+  editarTexto: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '600' },
+  excluirTexto: { color: '#E5484D', fontSize: 14, fontWeight: '600' },
+
+  // Detalhe do evento
+  cardDetalheEvento: {
+    borderRadius: 16,
+    backgroundColor: Cores.superficie,
     borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.35)',
+    borderColor: Cores.borda,
+    padding: 16,
+    gap: 10,
+    marginBottom: 18,
+  },
+  detalheDescricao: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20 },
+  resumosBotao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Cores.vinho,
+  },
+  resumosTexto: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  tituloSecao: { color: Cores.texto, fontSize: 18, fontWeight: '700', marginBottom: 12 },
+
+  cardPalestra: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    minHeight: 120,
+    borderRadius: 16,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+  imagemPalestra: { width: 120, minHeight: 120 },
+  imagemSemImagem: {
+    width: 120,
+    minHeight: 120,
+    backgroundColor: Cores.vinhoSuave,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cardPalestraCorpo: { flex: 1, padding: 14, gap: 6 },
+
+  // Modal de cadastro / edição
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    padding: 20,
   },
   overlayScroll: {
-    justifyContent: 'flex-end',
     flexGrow: 1,
+    justifyContent: 'center',
   },
   modal: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: Spacing.four,
-    gap: Spacing.two,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    borderRadius: 18,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.vinhoEscuro,
+    padding: 22,
+    gap: 8,
   },
-  modalTitulo: {
-    marginBottom: Spacing.two,
-    textAlign: 'center',
+  modalCabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
-  label: {
-    marginTop: Spacing.one,
+  modalIconeTitulo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Cores.vinhoSuave,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  modalTitulo: { flex: 1, color: Cores.texto, fontSize: 20, fontWeight: '700' },
+  modalFechar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Cores.superficieAlta,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: { color: Cores.texto, fontSize: 14, fontWeight: '600', marginTop: 8 },
   input: {
-    borderWidth: 1.5,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 16,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: Cores.vinhoEscuro,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Cores.texto,
+    backgroundColor: Cores.fundo,
   },
-  linhaDataHora: {
+  textArea: { minHeight: 96, paddingTop: 12 },
+  linhaDataHora: { flexDirection: 'row', gap: 10 },
+  inputData: { flex: 2 },
+  inputHora: { flex: 1 },
+  erroBox: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(229, 72, 77, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(229, 72, 77, 0.4)',
   },
-  inputData: {
-    flex: 2,
-  },
-  inputHora: {
-    flex: 1,
-  },
-  erroTexto: {
-    color: '#e53935',
-    marginTop: Spacing.one,
-  },
-  modalAcoes: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginTop: Spacing.three,
-  },
+  erroTexto: { flex: 1, color: '#FF6B70', fontSize: 13, fontWeight: '600' },
+  modalAcoes: { flexDirection: 'row', gap: 10, marginTop: 18 },
   cancelarBtn: {
     flex: 1,
-    borderWidth: 1.5,
-    borderRadius: Spacing.three,
-    paddingVertical: Spacing.two,
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: Cores.vinhoEscuro,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Cores.fundo,
   },
+  cancelarTexto: { color: Cores.texto, fontSize: 15, fontWeight: '600' },
   salvarBtn: {
     flex: 1,
-    borderRadius: Spacing.three,
-    paddingVertical: Spacing.two,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: Cores.vinho,
     alignItems: 'center',
+    justifyContent: 'center',
   },
+  salvarTexto: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+
+  // Modal de exclusão
   modalExcluirOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
   modalExcluirContainer: {
-    padding: Spacing.four,
-    borderRadius: Spacing.three,
-    width: '80%',
-    gap: Spacing.two,
+    width: '100%',
+    maxWidth: 400,
+    padding: 22,
+    borderRadius: 16,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.vinhoEscuro,
+    gap: 10,
   },
-  modalExcluirAcoes: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  modalExcluirCancelar: {
-    flex: 1,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
-    alignItems: 'center',
-  },
+  modalExcluirTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700' },
+  modalExcluirTexto: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20 },
+  modalExcluirDestaque: { color: Cores.texto, fontWeight: '700' },
+  modalExcluirAcoes: { flexDirection: 'row', gap: 10, marginTop: 10 },
   modalExcluirConfirmar: {
     flex: 1,
-    paddingVertical: Spacing.two,
-    backgroundColor: '#e53935',
-    borderRadius: Spacing.two,
+    minHeight: 46,
+    backgroundColor: '#E5484D',
+    borderRadius: 10,
     alignItems: 'center',
-  },
-  pesquisaContainer: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
+    justifyContent: 'center',
   },
 });

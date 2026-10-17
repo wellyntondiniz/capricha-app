@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -182,20 +183,41 @@ export default function CadastroResumoScreen() {
 
   if (carregando) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ActivityIndicator size="large" color={Cores.destaque} style={styles.centro} />
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.centro}>
+          <ActivityIndicator size="large" color={Cores.destaque} />
+          <Text style={styles.ajuda}>Carregando resumo...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   if (erroCarregar) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.centro}>
-          <Text style={styles.ajuda}>{erroCarregar}</Text>
-          <Pressable onPress={voltar} style={styles.botaoSecundario}>
-            <Text style={styles.botaoSecundarioTexto}>Voltar</Text>
-          </Pressable>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.pagina}>
+          <View style={styles.cabecalho}>
+            <Pressable
+              onPress={voltar}
+              style={styles.botaoVoltar}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar">
+              <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+            </Pressable>
+            <View style={styles.titulos}>
+              <Text accessibilityRole="header" style={styles.tituloCabecalho}>
+                {editando ? 'Editar resumo' : 'Novo resumo'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.estadoVazio}>
+            <Ionicons name="cloud-offline-outline" size={42} color={Cores.destaque} />
+            <Text style={styles.ajuda}>{erroCarregar}</Text>
+            <Pressable onPress={voltar} style={styles.botaoSecundario}>
+              <Text style={styles.botaoSecundarioTexto}>Voltar</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -204,18 +226,33 @@ export default function CadastroResumoScreen() {
   const temBannerAtual = !!bannerAtual && !removerBanner && !novoBanner;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.pagina} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={voltar} hitSlop={8} accessibilityRole="button" accessibilityLabel="Voltar">
-            <Text style={styles.voltar}>← Voltar</Text>
-          </Pressable>
+        <ScrollView
+          contentContainerStyle={styles.pagina}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.cabecalho}>
+            <Pressable
+              onPress={voltar}
+              style={styles.botaoVoltar}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar">
+              <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+            </Pressable>
+            <View style={styles.titulos}>
+              <Text accessibilityRole="header" style={styles.tituloCabecalho}>
+                {editando ? 'Editar resumo' : 'Novo resumo'}
+              </Text>
+              <Text style={styles.subtituloCabecalho}>
+                {editando
+                  ? 'Atualize os dados do trabalho científico'
+                  : 'Preencha os dados para cadastrar um novo resumo'}
+              </Text>
+            </View>
+          </View>
 
           <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.titulo}>
-              {editando ? 'Editar resumo' : 'Novo resumo'}
-            </Text>
-
             <Text style={styles.rotulo}>Evento</Text>
             {eventos.length === 0 ? (
               <Text style={styles.ajuda}>Nenhum evento disponível. Cadastre um evento antes de criar resumos.</Text>
@@ -306,7 +343,12 @@ export default function CadastroResumoScreen() {
               <View style={styles.bannerBloco}>
                 <BannerResumo banner={temBannerAtual ? bannerAtual : null} uriLocal={novoBanner?.uri} />
                 <View style={styles.bannerAcoes}>
-                  <Pressable onPress={escolherImagem} disabled={escolhendoImagem} hitSlop={8}>
+                  <Pressable
+                    onPress={escolherImagem}
+                    disabled={escolhendoImagem}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}>
+                    <Ionicons name="image-outline" size={16} color={Cores.vinhoClaro} />
                     <Text style={styles.acaoEditar}>Trocar imagem</Text>
                   </Pressable>
                   <Pressable
@@ -314,13 +356,19 @@ export default function CadastroResumoScreen() {
                       setNovoBanner(null);
                       setRemoverBanner(true);
                     }}
-                    hitSlop={8}>
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}>
+                    <Ionicons name="trash-outline" size={16} color="#E5484D" />
                     <Text style={styles.acaoExcluir}>Remover banner</Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
-              <Pressable onPress={escolherImagem} disabled={escolhendoImagem} style={styles.botaoSecundario}>
+              <Pressable
+                onPress={escolherImagem}
+                disabled={escolhendoImagem}
+                style={({ pressed }) => [styles.botaoSecundario, pressed && { opacity: 0.8 }]}>
+                <Ionicons name="image-outline" size={18} color={Cores.texto} />
                 <Text style={styles.botaoSecundarioTexto}>
                   {escolhendoImagem ? 'Abrindo galeria...' : 'Escolher imagem'}
                 </Text>
@@ -337,7 +385,7 @@ export default function CadastroResumoScreen() {
             <Pressable
               onPress={salvar}
               disabled={enviando}
-              style={[styles.botao, enviando && { opacity: 0.6 }]}
+              style={({ pressed }) => [styles.botao, (pressed || enviando) && { opacity: 0.75 }]}
               accessibilityRole="button">
               {enviando ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -355,23 +403,56 @@ export default function CadastroResumoScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Cores.fundo },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  pagina: { padding: 20, gap: 16, width: '100%', maxWidth: 560, alignSelf: 'center', paddingBottom: 48 },
-  voltar: { color: Cores.texto, fontSize: 16, fontWeight: '600' },
+  pagina: {
+    paddingHorizontal: 20,
+    paddingBottom: 48,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+  },
+  cabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+  },
+  botaoVoltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+  titulos: { flex: 1 },
+  tituloCabecalho: { color: Cores.texto, fontSize: 24, fontWeight: '700' },
+  subtituloCabecalho: { color: Cores.textoSuave, fontSize: 13, marginTop: 2 },
+  estadoVazio: {
+    alignItems: 'center',
+    padding: 28,
+    borderRadius: 18,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    gap: 12,
+    marginTop: 12,
+  },
   card: {
     borderWidth: 1,
-    borderColor: Cores.vinhoEscuro,
-    borderRadius: 10,
+    borderColor: Cores.borda,
+    borderRadius: 16,
     backgroundColor: Cores.superficie,
     padding: 20,
     gap: 6,
   },
-  titulo: { color: Cores.texto, fontSize: 24, fontWeight: '700', marginBottom: 8 },
-  rotulo: { color: Cores.texto, fontSize: 15, fontWeight: '600', marginTop: 14 },
+  rotulo: { color: Cores.texto, fontSize: 15, fontWeight: '600', marginTop: 12 },
   input: {
     minHeight: 48,
     borderWidth: 1,
     borderColor: Cores.vinhoEscuro,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     color: Cores.texto,
@@ -379,7 +460,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   inputErro: { borderColor: '#E5484D' },
-  areaTexto: { minHeight: 180 },
+  areaTexto: { minHeight: 180, paddingTop: 12 },
   dica: { color: Cores.textoSuave, fontSize: 12 },
   erro: { color: '#FF6B70', fontSize: 13 },
   erroGeral: { color: '#FF6B70', fontSize: 14, marginTop: 12 },
@@ -393,17 +474,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: Cores.fundo,
   },
-  chipSelecionado: { backgroundColor: Cores.vinho },
+  chipSelecionado: { backgroundColor: Cores.vinho, borderColor: Cores.vinhoClaro },
   chipTexto: { color: Cores.textoSuave, fontSize: 14 },
   chipTextoSelecionado: { color: '#FFFFFF', fontWeight: '600' },
   bannerBloco: { gap: 10 },
-  bannerAcoes: { flexDirection: 'row', gap: 20 },
-  acaoEditar: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '600' },
-  acaoExcluir: { color: '#E5484D', fontSize: 14, fontWeight: '600' },
+  bannerAcoes: { flexDirection: 'row', gap: 18 },
+  acaoBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4 },
+  acaoEditar: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '700' },
+  acaoExcluir: { color: '#E5484D', fontSize: 14, fontWeight: '700' },
   botao: {
-    minHeight: 48,
+    minHeight: 50,
     marginTop: 20,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: Cores.vinho,
     alignItems: 'center',
     justifyContent: 'center',
@@ -411,12 +493,15 @@ const styles = StyleSheet.create({
   botaoTexto: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   botaoSecundario: {
     minHeight: 46,
+    flexDirection: 'row',
+    gap: 8,
     borderWidth: 1,
     borderColor: Cores.vinhoEscuro,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
   botaoSecundarioTexto: { color: Cores.texto, fontSize: 15, fontWeight: '600' },
 });
+

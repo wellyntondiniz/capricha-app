@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -76,190 +77,311 @@ export default function ResumosScreen() {
 
   if (!eventoValido) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.vazio}>
-          <Text style={styles.vazioTitulo}>Nenhum evento selecionado</Text>
-          <Text style={styles.vazioTexto}>Abra os resumos a partir da tela de um evento.</Text>
-          <Pressable onPress={voltar} style={styles.botaoSecundario}>
-            <Text style={styles.botaoSecundarioTexto}>Voltar</Text>
-          </Pressable>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.conteudo}>
+          <View style={styles.cabecalho}>
+            <Pressable
+              onPress={voltar}
+              style={styles.botaoVoltar}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar">
+              <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+            </Pressable>
+            <View style={styles.titulos}>
+              <Text accessibilityRole="header" style={styles.titulo}>
+                Resumos
+              </Text>
+              <Text style={styles.subtitulo}>Trabalhos e resumos científicos</Text>
+            </View>
+          </View>
+
+          <View style={styles.centralizado}>
+            <View style={styles.estadoVazio}>
+              <Ionicons name="document-text-outline" size={42} color={Cores.vinhoClaro} />
+              <Text style={styles.estadoTitulo}>Nenhum evento selecionado</Text>
+              <Text style={styles.textoSuave}>Abra os resumos a partir da tela de um evento.</Text>
+              <Pressable onPress={voltar} style={styles.tentarNovamente}>
+                <Text style={styles.tentarNovamenteTexto}>Voltar para eventos</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.cabecalho}>
-        <Pressable onPress={voltar} hitSlop={8} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Text style={styles.voltar}>← Voltar</Text>
-        </Pressable>
-        <Pressable onPress={() => abrirFormulario()} style={styles.botaoNovo} accessibilityRole="button">
-          <Text style={styles.botaoNovoTexto}>+ Novo resumo</Text>
-        </Pressable>
-      </View>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.conteudo}>
+        <View style={styles.cabecalho}>
+          <Pressable
+            onPress={voltar}
+            style={styles.botaoVoltar}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar">
+            <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+          </Pressable>
 
-      <View style={styles.titulos}>
-        <Text accessibilityRole="header" style={styles.titulo}>
-          Resumos
-        </Text>
-        {!!nomeEvento && <Text style={styles.subtitulo}>{nomeEvento}</Text>}
-      </View>
+          <View style={styles.titulos}>
+            <Text accessibilityRole="header" style={styles.titulo}>
+              Resumos
+            </Text>
+            <Text style={styles.subtitulo} numberOfLines={1}>
+              {nomeEvento || 'Trabalhos submetidos ao evento'}
+            </Text>
+          </View>
 
-      {carregando ? (
-        <ActivityIndicator size="large" color={Cores.destaque} style={styles.loader} />
-      ) : erroCarregar ? (
-        <View style={styles.vazio}>
-          <Text style={styles.vazioTitulo}>{erroCarregar}</Text>
-          <Pressable onPress={() => { setCarregando(true); carregar(); }} style={styles.botaoSecundario}>
-            <Text style={styles.botaoSecundarioTexto}>Tentar de novo</Text>
+          <Pressable
+            onPress={() => abrirFormulario()}
+            style={({ pressed }) => [styles.novoBotao, pressed && { opacity: 0.8 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Novo resumo">
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <Text style={styles.novoTexto}>Novo resumo</Text>
           </Pressable>
         </View>
-      ) : (
-        <FlatList
-          data={resumos}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.lista}
-          ListEmptyComponent={
-            <View style={styles.vazio}>
-              <Text style={styles.vazioTitulo}>Este evento ainda não tem resumos.</Text>
-              <Text style={styles.vazioTexto}>
-                Toque em “+ Novo resumo” para cadastrar o primeiro.
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Pressable
-                onPress={() => abrirDetalhe(item)}
-                style={({ pressed }) => [styles.cardConteudo, pressed && { opacity: 0.8 }]}
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir resumo ${item.titulo}`}>
-                <BannerResumo banner={item.banner} />
-                <Text style={styles.cardTitulo} numberOfLines={3}>
-                  {item.titulo}
-                </Text>
-                {item.autores.length > 0 && (
-                  <Text style={styles.cardAutores} numberOfLines={2}>
-                    {item.autores.join(', ')}
-                  </Text>
-                )}
-              </Pressable>
 
-              <View style={styles.cardAcoes}>
-                <Pressable onPress={() => abrirFormulario(item)} hitSlop={8}>
-                  <Text style={styles.acaoEditar}>Editar</Text>
+        {carregando ? (
+          <View style={styles.centralizado}>
+            <ActivityIndicator size="large" color={Cores.destaque} />
+            <Text style={styles.textoSuave}>Carregando resumos...</Text>
+          </View>
+        ) : erroCarregar ? (
+          <View style={styles.estadoVazio}>
+            <Ionicons name="cloud-offline-outline" size={42} color={Cores.destaque} />
+            <Text style={styles.estadoTitulo}>{erroCarregar}</Text>
+            <Pressable
+              onPress={() => {
+                setCarregando(true);
+                carregar();
+              }}
+              style={styles.tentarNovamente}>
+              <Text style={styles.tentarNovamenteTexto}>Tentar de novo</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <FlatList
+            data={resumos}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={resumos.length === 0 ? styles.listaVazia : styles.lista}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.estadoVazio}>
+                <Ionicons name="document-text-outline" size={42} color={Cores.vinhoClaro} />
+                <Text style={styles.estadoTitulo}>Este evento ainda não tem resumos.</Text>
+                <Text style={styles.textoSuave}>
+                  Toque em “+ Novo resumo” para cadastrar o primeiro.
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <Pressable
+                  onPress={() => abrirDetalhe(item)}
+                  style={({ pressed }) => [styles.cardConteudo, pressed && { opacity: 0.85 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir resumo ${item.titulo}`}>
+                  <BannerResumo banner={item.banner} />
+                  <Text style={styles.cardTitulo} numberOfLines={3}>
+                    {item.titulo}
+                  </Text>
+                  {item.autores.length > 0 && (
+                    <View style={styles.metaLinha}>
+                      <Ionicons name="person-outline" size={15} color={Cores.textoSuave} />
+                      <Text style={styles.cardAutores} numberOfLines={2}>
+                        {item.autores.join(', ')}
+                      </Text>
+                    </View>
+                  )}
                 </Pressable>
-                <Pressable onPress={() => setParaExcluir(item)} hitSlop={8}>
-                  <Text style={styles.acaoExcluir}>Excluir</Text>
+
+                <View style={styles.cardAcoes}>
+                  <Pressable
+                    onPress={() => abrirFormulario(item)}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}>
+                    <Ionicons name="create-outline" size={16} color={Cores.vinhoClaro} />
+                    <Text style={styles.acaoEditar}>Editar</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setParaExcluir(item)}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}>
+                    <Ionicons name="trash-outline" size={16} color="#E5484D" />
+                    <Text style={styles.acaoExcluir}>Excluir</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          />
+        )}
+
+        <Modal
+          visible={!!paraExcluir}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setParaExcluir(null)}>
+          <View style={styles.overlay}>
+            <View style={styles.modal}>
+              <Text style={styles.modalTitulo}>Excluir resumo?</Text>
+              <Text style={styles.modalTexto}>
+                “{paraExcluir?.titulo}” será removido do evento e não poderá ser recuperado.
+              </Text>
+              <View style={styles.modalAcoes}>
+                <Pressable
+                  onPress={() => setParaExcluir(null)}
+                  style={({ pressed }) => [styles.botaoSecundario, pressed && { opacity: 0.7 }]}
+                  disabled={excluindo}>
+                  <Text style={styles.botaoSecundarioTexto}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={confirmarExclusao}
+                  style={({ pressed }) => [styles.botaoPerigo, pressed && { opacity: 0.7 }]}
+                  disabled={excluindo}>
+                  {excluindo ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.botaoPerigoTexto}>Excluir resumo</Text>
+                  )}
                 </Pressable>
               </View>
             </View>
-          )}
-        />
-      )}
-
-      <Modal visible={!!paraExcluir} transparent animationType="fade" onRequestClose={() => setParaExcluir(null)}>
-        <View style={styles.overlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitulo}>Excluir resumo?</Text>
-            <Text style={styles.modalTexto}>
-              “{paraExcluir?.titulo}” será removido do evento e não poderá ser recuperado.
-            </Text>
-            <View style={styles.modalAcoes}>
-              <Pressable onPress={() => setParaExcluir(null)} style={styles.botaoSecundario} disabled={excluindo}>
-                <Text style={styles.botaoSecundarioTexto}>Cancelar</Text>
-              </Pressable>
-              <Pressable onPress={confirmarExclusao} style={styles.botaoPerigo} disabled={excluindo}>
-                {excluindo ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.botaoPerigoTexto}>Excluir resumo</Text>
-                )}
-              </Pressable>
-            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Cores.fundo },
+  conteudo: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 20 },
   cabecalho: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    gap: 12,
+    paddingVertical: 16,
   },
-  voltar: { color: Cores.texto, fontSize: 16, fontWeight: '600' },
-  botaoNovo: { backgroundColor: Cores.vinho, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  botaoNovoTexto: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  titulos: { paddingHorizontal: 20, paddingBottom: 8, gap: 2 },
-  titulo: { color: Cores.texto, fontSize: 26, fontWeight: '700' },
-  subtitulo: { color: Cores.textoSuave, fontSize: 15 },
-  loader: { flex: 1, alignSelf: 'center' },
-  lista: { padding: 16, gap: 14, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' },
+  botaoVoltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+  titulos: { flex: 1 },
+  titulo: { color: Cores.texto, fontSize: 24, fontWeight: '700' },
+  subtitulo: { color: Cores.textoSuave, fontSize: 13, marginTop: 2 },
+  novoBotao: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: Cores.vinho,
+  },
+  novoTexto: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+
+  centralizado: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  lista: { gap: 14, paddingBottom: 32 },
+  listaVazia: { flexGrow: 1, justifyContent: 'center', paddingBottom: 48 },
+
+  estadoVazio: {
+    width: '100%',
+    alignItems: 'center',
+    padding: 28,
+    borderRadius: 18,
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+    gap: 6,
+  },
+  estadoTitulo: { color: Cores.texto, fontSize: 17, fontWeight: '700', textAlign: 'center', marginTop: 6 },
+  textoSuave: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  tentarNovamente: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Cores.vinhoClaro,
+  },
+  tentarNovamenteTexto: { color: Cores.vinhoClaro, fontWeight: '700' },
+
   card: {
     backgroundColor: Cores.superficie,
     borderWidth: 1,
     borderColor: Cores.borda,
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
   },
-  cardConteudo: { gap: 8 },
+  cardConteudo: { gap: 10 },
   cardTitulo: { color: Cores.texto, fontSize: 17, fontWeight: '700', lineHeight: 23 },
-  cardAutores: { color: Cores.textoSuave, fontSize: 14 },
+  metaLinha: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardAutores: { flex: 1, color: Cores.textoSuave, fontSize: 14 },
   cardAcoes: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 20,
+    gap: 18,
     borderTopWidth: 1,
     borderTopColor: Cores.borda,
     paddingTop: 10,
   },
-  acaoEditar: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '600' },
-  acaoExcluir: { color: '#E5484D', fontSize: 14, fontWeight: '600' },
-  vazio: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
-  vazioTitulo: { color: Cores.texto, fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  vazioTexto: { color: Cores.textoSuave, fontSize: 14, textAlign: 'center', lineHeight: 21 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  acaoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  acaoEditar: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '700' },
+  acaoExcluir: { color: '#E5484D', fontSize: 14, fontWeight: '700' },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
   modal: {
     width: '100%',
     maxWidth: 400,
     backgroundColor: Cores.superficie,
     borderWidth: 1,
     borderColor: Cores.vinhoEscuro,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     gap: 10,
   },
   modalTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700' },
   modalTexto: { color: Cores.textoSuave, fontSize: 14, lineHeight: 21 },
-  modalAcoes: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  modalAcoes: { flexDirection: 'row', gap: 10, marginTop: 10 },
   botaoSecundario: {
     flex: 1,
     minHeight: 44,
     borderWidth: 1,
     borderColor: Cores.vinhoEscuro,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    marginTop: 8,
   },
   botaoSecundarioTexto: { color: Cores.texto, fontSize: 15, fontWeight: '600' },
   botaoPerigo: {
     flex: 1,
     minHeight: 44,
     backgroundColor: '#C0343A',
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    paddingHorizontal: 16,
   },
   botaoPerigoTexto: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });
+
