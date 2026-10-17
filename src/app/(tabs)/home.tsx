@@ -1,14 +1,15 @@
-import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
+import { useState } from 'react';
+
 import {
-    Image,
-    Pressable,
-    PressableStateCallbackType,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Pressable,
+  PressableStateCallbackType,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,6 +25,7 @@ const ATALHOS: { id: string; titulo: string; descricao: string; icone: Icone; co
   { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/palestras' },
   { id: 'ranking', titulo: 'Ranking', descricao: 'Classificação e pontos dos participantes', icone: 'trophy', cor: Cores.vinhoClaro, rota: '/(tabs)/ranking' },
   { id: 'quiz', titulo: 'Quiz', descricao: 'Responda perguntas e acumule pontos', icone: 'help-circle', cor: Cores.vinhoProfundo, rota: '/quiz' },
+  { id: 'perguntas', titulo: 'Perguntas', descricao: 'Visualize todas as perguntas', icone: 'list', cor: Cores.vinhoProfundo, rota: '/lista-perguntas' },
 ];
 
 function estadoDoToque(state: PressableStateCallbackType) {
