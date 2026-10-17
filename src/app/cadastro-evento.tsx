@@ -1,5 +1,5 @@
 import { EventoApiError, salvarEvento } from '@/services/eventoService';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -66,6 +66,8 @@ const agoraSemSegundos = (): Date => {
 };
 
 export default function CadastroEvento() {
+  const { retorno } = useLocalSearchParams<{ retorno?: string }>();
+  const destinoVolta = retorno === 'cadastro-palestra' ? '/cadastro-palestra' : '/eventos';
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [dataInicio, setDataInicio] = useState('');
@@ -167,6 +169,7 @@ export default function CadastroEvento() {
       setHoraInicio('');
       setDataTermino('');
       setHoraTermino('');
+      router.replace(destinoVolta);
     } catch (error) {
       const erro = error as EventoApiError;
       mostrarAlerta('Erro', erro.message || 'Não foi possível salvar o evento.');
@@ -176,6 +179,9 @@ export default function CadastroEvento() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
+        <Pressable style={styles.voltar} onPress={() => router.replace(destinoVolta)}>
+          <Text style={styles.voltarTexto}>‹ Voltar</Text>
+        </Pressable>
         <Text style={styles.title}>Cadastro de evento</Text>
 
         <Text style={styles.label}>Nome do evento</Text>
@@ -263,6 +269,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#101118',
   },
+  voltar: { alignSelf: 'flex-start', paddingVertical: 8, paddingRight: 12, marginBottom: 6 },
+  voltarTexto: { color: '#A92B50', fontSize: 14, fontWeight: '600' },
   title: { color: '#FFFFFF', fontSize: 26, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
   label: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 12 },
   input: {

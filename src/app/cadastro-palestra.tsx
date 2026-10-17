@@ -242,6 +242,7 @@ export default function CadastroPalestra() {
       setHorario('');
       setEventoSelecionado(null);
       setImagem(null);
+      router.replace('/palestras');
     } catch (error) {
       const erro_ = error as PalestraApiError;
 
@@ -259,6 +260,9 @@ export default function CadastroPalestra() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.card}>
+        <Pressable style={styles.voltarLista} onPress={() => router.replace('/palestras')}>
+          <Text style={styles.voltarListaTexto}>‹ Voltar para a lista de palestras</Text>
+        </Pressable>
         <Text style={styles.title}>Cadastro de palestra</Text>
 
         <Text style={styles.label}>Nome da palestra</Text>
@@ -351,7 +355,14 @@ export default function CadastroPalestra() {
         {eventos.length === 0 ? (
           <View style={styles.avisoBox}>
             <Text style={styles.avisoText}>Nenhum evento cadastrado.</Text>
-            <Pressable onPress={() => router.push('/cadastro-evento')}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/cadastro-evento',
+                  params: { retorno: 'cadastro-palestra' },
+                })
+              }
+            >
               <Text style={styles.link}>Cadastrar um evento</Text>
             </Pressable>
           </View>
@@ -443,6 +454,19 @@ const styles = StyleSheet.create({
     borderColor: '#8E173D',
     borderRadius: 12,
     backgroundColor: '#101118',
+  },
+
+  voltarLista: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingRight: 12,
+    marginBottom: 6,
+  },
+
+  voltarListaTexto: {
+    color: '#A92B50',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   title: {
