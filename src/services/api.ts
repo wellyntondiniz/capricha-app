@@ -1,17 +1,20 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const BASE_URL = Platform.select({
+// Login principal e check-in compartilham a mesma origem (sem o antigo sufixo /api).
+const enderecoConfigurado = process.env.EXPO_PUBLIC_API_URL
+  ?? Constants.expoConfig?.extra?.apiUrl as string | undefined;
+const BASE_URL = (enderecoConfigurado ?? Platform.select({
   android: 'http://10.0.2.2:8080',
   default: 'http://localhost:8080',
-});
+}) ?? 'http://localhost:8080').replace(/\/$/, '');
 
 export default BASE_URL;
 
 const PORTA = "8080";
 
 function resolverUrlBase(): string {
-  const manual = Constants.expoConfig?.extra?.apiUrl as string | undefined;
+  const manual = enderecoConfigurado;
   if (manual) return manual;
 
   if (Platform.OS === "web") {

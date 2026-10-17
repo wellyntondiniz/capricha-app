@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Usuario } from '@/services/usuarioService';
+import { encerrarSessao, mesclarSessao, restaurarSessao } from '@/services/sessaoService';
 
 export interface AuthContextType {
   usuario: Usuario | null;
@@ -22,7 +23,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const salvo = await AsyncStorage.getItem(STORAGE_KEY);
         if (salvo) {
-          setUsuario(JSON.parse(salvo));
+          const dados: Usuario = JSON.parse(salvo);
+          const sessao = await restaurarSessao(dados);
+          if (!sessao) {
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            return;
+          }
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(sessao));
+          setUsuario(sessao);
         }
       } catch (erro) {
         console.error('Erro ao carregar sessão do usuário:', erro);
@@ -36,23 +44,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function salvarSessao(dadosUsuario: Usuario) {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(dadosUsuario));
-      setUsuario(dadosUsuario);
+      // Atualizações de foto devolvem os dados públicos, sem uma nova credencial.
+      const sessao = mesclarSessao(usuario, dadosUsuario);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(sessao));
+      setUsuario(sessao);
     } catch (erro) {
       console.error('Erro ao salvar sessão do usuário:', erro);
       throw erro;
     }
   }
 
-  async function deslogar() {
+  const deslogar = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY);
-      setUsuario(null);
+      if (usuario?.token) await encerrarSessao(usuario.token);
     } catch (erro) {
       console.error('Erro ao encerrar sessão:', erro);
-      throw erro;
+    } finally {
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+      } finally {
+        setUsuario(null);
+      }
     }
-  }
+  }, [usuario]);
 
   return (
     <AuthContext.Provider value={{ usuario, carregando, salvarSessao, deslogar }}>

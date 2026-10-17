@@ -3,6 +3,8 @@ import BASE_URL from './api';
 import { ErroApi, lerErroApi } from './erro-api';
 
 export type Usuario = {
+    token?: string;
+    expiraEm?: string;
     id? : number;
     nome? : string;
     email? : string;
