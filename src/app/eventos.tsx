@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Cores } from '@/constants/cores';
+import { LectureCheckInAction } from '@/features/check-in/lecture-check-in-action';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Evento,
@@ -403,6 +404,7 @@ export default function EventoScreen() {
                           {item.data} às {item.horario}
                         </Text>
                       </View>
+                      <LectureCheckInAction lectureId={item.id} />
                     </View>
                   </View>
                 );

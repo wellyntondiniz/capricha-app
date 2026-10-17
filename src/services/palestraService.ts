@@ -10,6 +10,7 @@ export type Palestra = {
   palestrante?: string;
   data?: string;
   horario?: string;
+  dataTermino?: string | null;
   perguntas?: Pergunta[];
   evento?: Evento;
   imagem?: string | null;
@@ -83,6 +84,7 @@ export async function salvarPalestraComImagem(
     palestrante: string;
     data: string;
     horario: string;
+    dataTermino?: string;
     evento: number;
   },
   imagem?: ImagePickerAsset | null
@@ -94,6 +96,7 @@ export async function salvarPalestraComImagem(
   formData.append('palestrante', dados.palestrante);
   formData.append('data', dados.data);
   formData.append('horario', dados.horario);
+  if (dados.dataTermino) formData.append('dataTermino', dados.dataTermino);
   formData.append('evento', String(dados.evento));
 
   if (imagem) {

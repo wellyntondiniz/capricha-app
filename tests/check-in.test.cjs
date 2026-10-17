@@ -23,9 +23,10 @@ function load(relative) {
   return module.exports;
 }
 
-const { parseQrCode } = load('src/features/check-in/parse-qr-code.ts');
+const { parseQrCode, validateQrContext } = load('src/features/check-in/parse-qr-code.ts');
 const { httpCheckInService: service } = load('src/features/check-in/http-check-in-service.ts');
 const { restaurarSessao, mesclarSessao, encerrarSessao } = load('src/services/sessaoService.ts');
+const { checkInProgress } = load('src/features/check-in/check-in-progress.ts');
 const token = 'credencial-principal';
 const qr = { type: 'EVENT_CHECKIN', eventId: 7, token: 'd9732c36-7bdb-4818-a5e5-6c6610843f53' };
 const session = { id: 9, nome: 'Ana', token, expiraEm: new Date(Date.now() + 3600000).toISOString() };
@@ -129,4 +130,112 @@ test('logout solicita revogação da credencial principal', async () => {
     return new Response(null, { status: 204 });
   };
   await encerrarSessao(token);
+});
+
+const lectureQr = { type: 'LECTURE_CHECKIN', lectureId: 42, token: 'd9732c36-7bdb-4818-a5e5-6c6610843f53' };
+const lecture = { id: 42, nome: 'Palestra real', descricao: null, dataInicio: '2026-10-17T12:00:00-04:00',
+  dataTermino: null, checkedInAt: null, hasCheckedIn: false, canCheckIn: true, status: 'available', eventoId: 7, palestrante: 'Ana' };
+
+test('scanner distingue evento de palestra e rejeita payload com IDs misturados', () => {
+  assert.deepEqual(parseQrCode(JSON.stringify(lectureQr)), lectureQr);
+  assert.deepEqual(parseQrCode(JSON.stringify(qr)), qr);
+  for (const value of [{ ...lectureQr, eventId: 7 }, { ...qr, lectureId: 42 },
+    { ...lectureQr, lectureId: 0 }, { ...lectureQr, lectureId: 1.5 }, { ...lectureQr, token: 'outro' }]) {
+    assert.throws(() => parseQrCode(JSON.stringify(value)), { code: 'INVALID_QR' });
+  }
+});
+
+test('scanner contextual não aceita outra palestra nem um evento de mesmo ID', () => {
+  const context = { type: 'LECTURE_CHECKIN', id: 42 };
+  assert.doesNotThrow(() => validateQrContext(lectureQr, context));
+  assert.throws(() => validateQrContext({ ...lectureQr, lectureId: 43 }, context), { code: 'QR_CONTEXT_MISMATCH' });
+  assert.throws(() => validateQrContext({ ...qr, eventId: 42 }, context), { code: 'QR_CONTEXT_MISMATCH' });
+});
+
+test('identificação de palestra usa mesmo cliente e credencial, validando tipo e ID no contrato', async () => {
+  global.fetch = async (url, init) => {
+    assert.equal(url, 'http://api.test:8080/palestras/42/check-in/validar');
+    assert.equal(init.headers.get('Authorization'), `Bearer ${token}`);
+    assert.deepEqual(JSON.parse(init.body), { type: 'LECTURE_CHECKIN', lectureId: 42, qrToken: lectureQr.token });
+    return Response.json(lecture);
+  };
+  const result = await service.getResourceByQrCode(JSON.stringify(lectureQr), token);
+  assert.equal(result.resourceType, 'LECTURE_CHECKIN');
+  assert.equal(result.id, 42);
+  assert.equal(result.qrToken, lectureQr.token);
+});
+
+test('incompatibilidade de contexto é recusada antes de qualquer chamada à API', async () => {
+  let chamadas = 0;
+  global.fetch = async () => { chamadas++; return Response.json(lecture); };
+  await assert.rejects(service.getResourceByQrCode(JSON.stringify(lectureQr), token,
+    { type: 'LECTURE_CHECKIN', id: 43 }), { code: 'QR_CONTEXT_MISMATCH' });
+  assert.equal(chamadas, 0);
+});
+
+test('scanner compartilhado preserva contrato original de eventos', async () => {
+  global.fetch = async (url, init) => {
+    assert.equal(url, 'http://api.test:8080/evento/7/check-in/validar');
+    assert.deepEqual(JSON.parse(init.body), { qrToken: qr.token });
+    return Response.json({ ...lecture, id: 7 });
+  };
+  assert.equal((await service.getResourceByQrCode(JSON.stringify(qr), token)).resourceType, 'EVENT_CHECKIN');
+  await assert.rejects(service.getEventByQrCode(JSON.stringify(lectureQr), token), { code: 'INVALID_QR' });
+});
+
+test('listagem de palestras restaura presença retornada pelo servidor', async () => {
+  global.fetch = async (url) => {
+    assert.equal(url, 'http://api.test:8080/palestras/check-in');
+    return Response.json([{ ...lecture, hasCheckedIn: true, checkedInAt: new Date().toISOString() }]);
+  };
+  const result = await service.getLectures(token);
+  assert.equal(result[0].hasCheckedIn, true);
+  assert.equal(result[0].resourceType, 'LECTURE_CHECKIN');
+});
+
+test('confirmação de palestra envia só sua identificação e QR, sem identidade escolhida pelo cliente', async () => {
+  global.fetch = async (url, init) => {
+    assert.equal(url, 'http://api.test:8080/palestras/42/check-in');
+    assert.deepEqual(JSON.parse(init.body), { type: 'LECTURE_CHECKIN', lectureId: 42, qrToken: lectureQr.token });
+    return Response.json({ id: 20, lectureId: 42, lectureName: lecture.nome, checkedInAt: new Date().toISOString() }, { status: 201 });
+  };
+  const result = await service.checkInResource({ ...lecture, resourceType: 'LECTURE_CHECKIN', qrToken: lectureQr.token }, token);
+  assert.equal(result.lectureId, 42);
+});
+
+test('palestra nunca apresenta sucesso com falha de rede, erro do servidor ou registro incompatível', async () => {
+  const selected = { ...lecture, resourceType: 'LECTURE_CHECKIN', qrToken: lectureQr.token };
+  await assert.rejects(service.checkInResource(selected, token), { code: 'NETWORK_ERROR' });
+  global.fetch = async () => Response.json({ mensagem: 'Falha' }, { status: 500 });
+  await assert.rejects(service.checkInResource(selected, token), { code: 'UNKNOWN' });
+  global.fetch = async () => Response.json({ id: 20, lectureId: 43, checkedInAt: new Date().toISOString() });
+  await assert.rejects(service.checkInResource(selected, token), { code: 'UNKNOWN' });
+  await assert.rejects(service.checkInResource({ ...selected, qrToken: undefined }, token), { code: 'INVALID_QR' });
+});
+
+test('modal de QR solicita o recurso correto para evento e palestra', async () => {
+  const paths = [];
+  global.fetch = async (url) => { paths.push(url); return Response.json({ payload: '', imageData: '' }); };
+  await service.getResourceQrCode({ ...lecture, resourceType: 'LECTURE_CHECKIN' }, token);
+  await service.getResourceQrCode({ ...lecture, id: 7, resourceType: 'EVENT_CHECKIN' }, token);
+  assert.deepEqual(paths, ['http://api.test:8080/palestras/42/qr-code', 'http://api.test:8080/evento/7/qr-code']);
+});
+
+test('Home calcula conclusão real, separando presenças por evento e palestra', () => {
+  const event = { ...lecture, id: 7, hasCheckedIn: false };
+  const lectures = [{ ...lecture, id: 42, eventoId: 7, hasCheckedIn: true },
+    { ...lecture, id: 43, eventoId: 7, hasCheckedIn: false },
+    { ...lecture, id: 44, eventoId: 8, hasCheckedIn: true }];
+  const progress = checkInProgress(event, lectures);
+  assert.equal(progress.eventStatus.tipo, 'progresso');
+  assert.equal(progress.lectureStatus.texto, '1 de 2 palestras');
+  assert.equal(checkInProgress({ ...event, hasCheckedIn: true }, lectures).eventStatus.tipo, 'concluido');
+  assert.equal(checkInProgress(event, lectures.map(p => ({ ...p, hasCheckedIn: true }))).lectureStatus.tipo, 'concluido');
+});
+
+test('Home sem registros não mostra check-in concluído nem inventa total de palestras', () => {
+  const progress = checkInProgress(undefined, []);
+  assert.equal(progress.eventStatus.tipo, 'progresso');
+  assert.equal(progress.lectureStatus.tipo, 'progresso');
+  assert.equal(progress.lectureStatus.total, 0);
 });

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Cores } from '@/constants/cores';
+import { LectureCheckInAction } from '@/features/check-in/lecture-check-in-action';
 import {
   listarPalestras,
   obterUrlImagemPalestra,
@@ -140,6 +141,7 @@ export default function ListaPalestras() {
                       </View>
                     )}
                     {!!item.descricao && <Text style={styles.descricao}>{item.descricao}</Text>}
+                    <LectureCheckInAction lectureId={item.id} />
                   </View>
                 </View>
               );
