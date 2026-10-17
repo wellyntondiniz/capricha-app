@@ -60,6 +60,8 @@ export default function CadastroPalestra() {
   const [palestrante, setPalestrante] = useState('');
   const [data, setData] = useState('');
   const [horario, setHorario] = useState('');
+  const [dataTermino, setDataTermino] = useState('');
+  const [horarioTermino, setHorarioTermino] = useState('');
   const [calendarioVisivel, setCalendarioVisivel] = useState(false);
 
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -188,6 +190,23 @@ export default function CadastroPalestra() {
     }
 
     const dataHoraPalestra = paraDataHora(data, horario);
+    let terminoISO: string | undefined;
+    if (dataTermino.trim() || horarioTermino.trim()) {
+      if (!validarData(dataTermino) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horarioTermino)) {
+        erro('Término inválido', 'Informe a data e o horário de término ou deixe ambos vazios.');
+        return;
+      }
+      const fim = paraDataHora(dataTermino, horarioTermino);
+      if (fim <= dataHoraPalestra) {
+        erro('Término inválido', 'O término deve ser posterior ao início da palestra.');
+        return;
+      }
+      if (eventoSelecionado.dataTermino && fim > new Date(eventoSelecionado.dataTermino)) {
+        erro('Fora do período do evento', 'O término da palestra não pode ultrapassar o término do evento.');
+        return;
+      }
+      terminoISO = `${converterParaISO(dataTermino)}T${horarioTermino}:00`;
+    }
 
     if (dataHoraPalestra < agoraSemSegundos()) {
       erro(
@@ -228,6 +247,7 @@ export default function CadastroPalestra() {
           palestrante: palestrante.trim(),
           data: data.trim(),
           horario: horario.trim(),
+          dataTermino: terminoISO,
           evento: eventoSelecionado.id!,
         },
         imagem
@@ -240,6 +260,8 @@ export default function CadastroPalestra() {
       setPalestrante('');
       setData('');
       setHorario('');
+      setDataTermino('');
+      setHorarioTermino('');
       setEventoSelecionado(null);
       setImagem(null);
       router.replace('/palestras');
@@ -325,6 +347,28 @@ export default function CadastroPalestra() {
             />
           </View>
         </View>
+
+        <Text style={styles.label}>Término (opcional)</Text>
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <TextInput style={styles.input} placeholder="DD/MM/AAAA" placeholderTextColor="#777"
+              accessibilityLabel="Data de término da palestra" value={dataTermino} maxLength={10}
+              onChangeText={(texto) => {
+                const digits = texto.replace(/\D/g, '').slice(0, 8);
+                setDataTermino(digits.length > 4 ? `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+                  : digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits);
+              }} />
+          </View>
+          <View style={styles.half}>
+            <TextInput style={styles.input} placeholder="HH:MM" placeholderTextColor="#777"
+              accessibilityLabel="Horário de término da palestra" value={horarioTermino} maxLength={5}
+              onChangeText={(texto) => {
+                const digits = texto.replace(/\D/g, '').slice(0, 4);
+                setHorarioTermino(digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits);
+              }} />
+          </View>
+        </View>
+        <Text style={styles.imagemOpcional}>Sem término cadastrado, o check-in não possui encerramento automático por horário da palestra.</Text>
 
         <Text style={styles.label}>Imagem da palestra</Text>
         {imagem ? (

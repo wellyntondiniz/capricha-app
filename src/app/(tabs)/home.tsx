@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { type Href, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { type Href, useRouter, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 
 import {
   Image,
@@ -16,7 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalLogout } from '@/components/modal-logout';
 import { Cores } from '@/constants/cores';
 import { useAuth } from '@/contexts/AuthContext';
-import { listarEventos } from '@/services/eventoService';
+import { httpCheckInService } from '@/features/check-in/http-check-in-service';
+import { checkInProgress } from '@/features/check-in/check-in-progress';
+import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
@@ -53,8 +55,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     icone: 'ticket-outline',
     cor: Cores.vinho,
     rota: '/check-in',
-    xp: '+50 XP',
-    status: { tipo: 'concluido', texto: 'Concluído!' },
+    xp: 'Presença',
   },
   {
     id: 'check-in-palestras',
@@ -63,8 +64,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     icone: 'easel-outline',
     cor: Cores.vinhoClaro,
     rota: '/check-in-palestras',
-    xp: '+50 XP',
-    status: { tipo: 'progresso', atual: 1, total: 3, texto: '1 de 3 palestras' },
+    xp: 'Presença',
   },
   {
     id: 'quiz',
@@ -125,7 +125,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const [modalLogoutVisivel, setModalLogoutVisivel] = useState(false);
   const [saindo, setSaindo] = useState(false);
-  const [nomeEventoAtivo, setNomeEventoAtivo] = useState<string>('Semana de Computação');
+  const [nomeEventoAtivo, setNomeEventoAtivo] = useState('Consultando evento...');
+  const [eventoCheckIn, setEventoCheckIn] = useState<CheckInEvent>();
+  const [palestrasCheckIn, setPalestrasCheckIn] = useState<CheckInEvent[]>([]);
+  const [estadoCheckIn, setEstadoCheckIn] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
 
   const nomeCompleto = usuario?.nome || 'Participante';
   const primeiroNome = nomeCompleto.split(' ')[0];
@@ -136,28 +139,43 @@ export default function HomeScreen() {
     usuario?.perfil?.toUpperCase() === 'ADMIN' ||
     usuario?.perfil?.toUpperCase() === 'ADMINISTRADOR';
   const perfilFormatado = ehAdmin ? 'Administrador' : 'Participante';
-  const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE;
+  const progresso = checkInProgress(eventoCheckIn, palestrasCheckIn);
+  const aguardando: StatusMissao = { tipo: 'progresso', atual: 0, total: 0,
+    texto: estadoCheckIn === 'erro' ? 'Não foi possível consultar a presença' : 'Consultando presença...' };
+  const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE.map(item => {
+    if (item.id === 'check-in-evento') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.eventStatus : aguardando };
+    if (item.id === 'check-in-palestras') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.lectureStatus : aguardando };
+    return item;
+  });
 
   const totalMissoes = ATALHOS_PARTICIPANTE.length;
-  const missoesConcluidas = ATALHOS_PARTICIPANTE.filter(
+  const missoesConcluidas = atalhos.filter(
     (m) => m.status?.tipo === 'concluido'
   ).length;
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let ativo = true;
-    listarEventos()
-      .then((lista) => {
-        if (ativo && lista.length > 0 && lista[0].nome) {
-          setNomeEventoAtivo(lista[0].nome);
-        }
+    if (!usuario?.token) return;
+    setEstadoCheckIn('carregando');
+    Promise.all([httpCheckInService.getEvents(usuario.token), httpCheckInService.getLectures(usuario.token)])
+      .then(([eventos, palestras]) => {
+        if (!ativo) return;
+        // Mantém a seleção existente da Home: o primeiro evento retornado pela API.
+        setEventoCheckIn(eventos[0]);
+        setNomeEventoAtivo(eventos[0]?.nome || 'Nenhum evento disponível');
+        setPalestrasCheckIn(palestras);
+        setEstadoCheckIn('pronto');
       })
-      .catch(() => {
-        // mantém fallback
+      .catch((error: unknown) => {
+        if (!ativo) return;
+        setEstadoCheckIn('erro');
+        setNomeEventoAtivo('Não foi possível consultar o evento');
+        if (error instanceof CheckInError && error.code === 'AUTH_REQUIRED') void deslogar();
       });
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [usuario, deslogar]));
 
   const confirmarLogout = async () => {
     setSaindo(true);

@@ -4,6 +4,7 @@ import { CheckInError, type CheckInFailureCode } from './types';
 const knownCodes: CheckInFailureCode[] = [
   'ALREADY_CHECKED_IN', 'CHECK_IN_NOT_AVAILABLE', 'EVENT_NOT_FOUND',
   'INVALID_EVENT_TOKEN', 'INVALID_QR', 'AUTH_REQUIRED', 'FORBIDDEN', 'INVALID_REQUEST',
+  'LECTURE_NOT_FOUND', 'INVALID_LECTURE_TOKEN', 'QR_CONTEXT_MISMATCH',
 ];
 
 // A credencial vem do AuthContext em cada chamada. Este módulo não mantém sessão.
