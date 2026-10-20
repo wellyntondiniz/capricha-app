@@ -308,6 +308,16 @@ const confirmarExclusao = async () => {
                           ? `Palestra #${pergunta.palestra.id}`
                           : 'Palestra não informada')}
                     </Text>
+
+                    <TouchableOpacity
+                      style={styles.botaoExcluir}
+                      activeOpacity={0.7}
+                      onPress={() => solicitarExclusao(pergunta.id)}
+                    >
+                      <Text style={styles.botaoExcluirTexto}>
+                        🗑
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))
