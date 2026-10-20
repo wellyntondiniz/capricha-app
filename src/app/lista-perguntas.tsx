@@ -268,12 +268,15 @@ const confirmarExclusao = async () => {
                     </Text>
 
                     <TouchableOpacity
-                      style={styles.botaoExcluir}
+                      style={styles.botaoEditar}
                       activeOpacity={0.7}
-                      onPress={() => solicitarExclusao(pergunta.id)}
+                      onPress={() => router.push({
+                        pathname: '/editar-pergunta',
+                        params: { id: String(pergunta.id) },
+                      })}
                     >
-                      <Text style={styles.botaoExcluirTexto}>
-                        🗑
+                      <Text style={styles.botaoEE}>
+                        🖊
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -314,7 +317,7 @@ const confirmarExclusao = async () => {
                       activeOpacity={0.7}
                       onPress={() => solicitarExclusao(pergunta.id)}
                     >
-                      <Text style={styles.botaoExcluirTexto}>
+                      <Text style={styles.botaoEE}>
                         🗑
                       </Text>
                     </TouchableOpacity>
@@ -654,7 +657,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  botaoExcluirTexto: {
+  botaoEditar: {
+    marginLeft: 'auto',
+    padding: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 4,
+    backgroundColor: '#1450aa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  botaoEE: {
     fontSize: 18,
     color: '#FCE7EB',
   },
