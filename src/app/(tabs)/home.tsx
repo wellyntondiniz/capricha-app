@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { type Href, useRouter, useFocusEffect } from 'expo-router';
+import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import {
@@ -16,9 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalLogout } from '@/components/modal-logout';
 import { Cores } from '@/constants/cores';
 import { useAuth } from '@/contexts/AuthContext';
-import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { checkInProgress } from '@/features/check-in/check-in-progress';
+import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
+import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
+import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
+import type { ResumoConexoes } from '@/features/conexoes/types';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
@@ -129,10 +132,13 @@ export default function HomeScreen() {
   const [eventoCheckIn, setEventoCheckIn] = useState<CheckInEvent>();
   const [palestrasCheckIn, setPalestrasCheckIn] = useState<CheckInEvent[]>([]);
   const [estadoCheckIn, setEstadoCheckIn] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
+  const [eventoConexao, setEventoConexao] = useState<CheckInEvent>();
+  const [resumoConexoes, setResumoConexoes] = useState<ResumoConexoes | null>(null);
 
   const nomeCompleto = usuario?.nome || 'Participante';
   const primeiroNome = nomeCompleto.split(' ')[0];
-  const notificacoesNaoLidas = 0;
+  // Solicitações de conexão recebidas que ainda esperam resposta.
+  const notificacoesNaoLidas = resumoConexoes?.recebidas.length ?? 0;
   const urlFoto = obterUrlFotoUsuario(usuario?.foto);
 
   const ehAdmin =
@@ -145,6 +151,7 @@ export default function HomeScreen() {
   const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE.map(item => {
     if (item.id === 'check-in-evento') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.eventStatus : aguardando };
     if (item.id === 'check-in-palestras') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.lectureStatus : aguardando };
+    if (item.id === 'conectar-pessoas') return { ...item, status: conexoesProgress(estadoCheckIn, eventoConexao, resumoConexoes) };
     return item;
   });
 
@@ -157,9 +164,20 @@ export default function HomeScreen() {
     let ativo = true;
     if (!usuario?.token) return;
     setEstadoCheckIn('carregando');
-    Promise.all([httpCheckInService.getEvents(usuario.token), httpCheckInService.getLectures(usuario.token)])
-      .then(([eventos, palestras]) => {
+    Promise.all([
+      httpCheckInService.getEvents(usuario.token),
+      httpCheckInService.getLectures(usuario.token),
+      // Falha nas conexões não derruba o restante da Home; só a sessão expirada é repassada.
+      httpConexaoService.getResumo(usuario.token).catch((error: unknown) => {
+        if (error instanceof CheckInError && error.code === 'AUTH_REQUIRED') throw error;
+        return null;
+      }),
+    ])
+      .then(([eventos, palestras, conexoes]) => {
         if (!ativo) return;
+        // Evento ativo das conexões: em andamento e com check-in feito (o mesmo da tela de conexões).
+        setEventoConexao(eventos.find((e) => e.hasCheckedIn && e.canCheckIn));
+        setResumoConexoes(conexoes);
         // Mantém a seleção existente da Home: o primeiro evento retornado pela API.
         setEventoCheckIn(eventos[0]);
         setNomeEventoAtivo(eventos[0]?.nome || 'Nenhum evento disponível');
@@ -176,6 +194,22 @@ export default function HomeScreen() {
       ativo = false;
     };
   }, [usuario, deslogar]));
+
+  // Mantém o aviso de solicitações recebidas atualizado enquanto a Home está aberta.
+  useFocusEffect(useCallback(() => {
+    const token = usuario?.token;
+    if (!token) return;
+    let ativo = true;
+    const timer = setInterval(() => {
+      httpConexaoService.getResumo(token)
+        .then((resumo) => { if (ativo) setResumoConexoes(resumo); })
+        .catch(() => undefined);
+    }, 15000);
+    return () => {
+      ativo = false;
+      clearInterval(timer);
+    };
+  }, [usuario?.token]));
 
   const confirmarLogout = async () => {
     setSaindo(true);
@@ -252,10 +286,10 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={
                   notificacoesNaoLidas > 0
-                    ? `Notificações, ${notificacoesNaoLidas} não lidas`
+                    ? `Notificações, ${notificacoesNaoLidas} solicitações de conexão pendentes`
                     : 'Notificações'
                 }
-                onPress={() => router.navigate('/notificacoes')}
+                onPress={() => router.navigate(notificacoesNaoLidas > 0 ? '/conectar-pessoas' : '/notificacoes')}
                 style={(state) => [
                   styles.botaoAcao,
                   estadoDoToque(state).hovered && styles.botaoAcaoHover,
@@ -715,25 +749,28 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(16, 185, 129, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.40)',
+    borderColor: 'rgba(52, 211, 153, 0.35)',
   },
-  badgeConcluidoTexto: {
-    color: '#6EE7B7',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  progressoLinha: {
+  badgeConcluidoTexto: { color: '#34D399', fontSize: 12, fontWeight: '700' },
+  badgeBloqueado: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-    flexWrap: 'wrap',
-  },
-  progressoTrilha: {
-    width: 88,
-    height: 7,
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: Cores.superficieAlta,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+  },
+  badgeBloqueadoTexto: { color: Cores.textoSuave, fontSize: 12, fontWeight: '600' },
+  progressoLinha: { marginTop: 8, gap: 6 },
+  progressoTrilha: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
   },
   progressoPreenchimento: {
@@ -741,62 +778,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: Cores.destaque,
   },
-  progressoTexto: {
-    color: Cores.textoSuave,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  badgeBloqueado: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 5,
-    marginTop: 6,
+  progressoTexto: { color: Cores.textoSuave, fontSize: 12, fontWeight: '600' },
+  cardDireita: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
+  xpBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: Cores.superficieAlta,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  badgeBloqueadoTexto: {
-    color: Cores.textoSuave,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  cardDireita: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  xpBadge: {
-    minWidth: 66,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
     backgroundColor: Cores.vinhoSuave,
     borderWidth: 1,
     borderColor: 'rgba(217, 70, 111, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   xpBadgeConcluido: {
-    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    backgroundColor: 'rgba(16, 185, 129, 0.16)',
     borderColor: 'rgba(52, 211, 153, 0.35)',
   },
   xpBadgeBloqueado: {
-    backgroundColor: Cores.superficieAlta,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
-  xpTexto: {
-    color: Cores.destaque,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  xpTextoConcluido: {
-    color: '#34D399',
-  },
-  xpTextoBloqueado: {
-    color: Cores.textoSuave,
-  },
+  xpTexto: { color: Cores.destaque, fontSize: 12, fontWeight: '800' },
+  xpTextoConcluido: { color: '#34D399' },
+  xpTextoBloqueado: { color: Cores.textoSuave },
 });

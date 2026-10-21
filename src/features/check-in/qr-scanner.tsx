@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Props = { onCodeScanned: (value: string) => void; onClose: () => void };
 
@@ -18,7 +18,15 @@ export function QrScanner({ onCodeScanned, onClose }: Props) {
   if (!permission) return <View style={styles.screen} />;
   if (cameraError) return <View style={styles.permissionScreen}><Text style={styles.permissionTitle}>Não foi possível abrir a câmera</Text><Text style={styles.permissionText}>Verifique a permissão e se a câmera está sendo usada por outro aplicativo. Na web, utilize HTTPS ou localhost.</Text><Pressable onPress={onClose}><Text style={styles.cancelText}>Voltar</Text></Pressable></View>;
   if (!permission.granted) {
-    return <View style={styles.permissionScreen}><Text style={styles.permissionTitle}>Permita o uso da câmera</Text><Text style={styles.permissionText}>Precisamos da câmera para ler o QR Code do evento.</Text><Pressable style={styles.primaryButton} onPress={requestPermission}><Text style={styles.primaryText}>Permitir câmera</Text></Pressable><Pressable onPress={onClose}><Text style={styles.cancelText}>Voltar</Text></Pressable></View>;
+    // Depois de negar de forma definitiva, o sistema não mostra mais o pedido: é preciso liberar nas configurações.
+    const bloqueada = !permission.canAskAgain;
+    const web = Platform.OS === 'web';
+    const texto = !bloqueada
+      ? 'Precisamos da câmera para ler o QR Code.'
+      : web
+        ? 'O acesso à câmera foi bloqueado. Clique no ícone de cadeado ao lado do endereço, permita a câmera para este site e recarregue a página.'
+        : 'O acesso à câmera está bloqueado. Abra as configurações do aparelho, permita a câmera para o Capricha e volte para escanear.';
+    return <View style={styles.permissionScreen}><Text style={styles.permissionTitle}>Permita o uso da câmera</Text><Text style={styles.permissionText}>{texto}</Text>{!(bloqueada && web) && <Pressable style={styles.primaryButton} onPress={bloqueada ? () => { void Linking.openSettings(); } : requestPermission}><Text style={styles.primaryText}>{bloqueada ? 'Abrir configurações' : 'Permitir câmera'}</Text></Pressable>}<Pressable onPress={onClose}><Text style={styles.cancelText}>Voltar</Text></Pressable></View>;
   }
 
   return <View style={styles.screen}>
