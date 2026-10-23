@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ListaRanking } from '@/components/lista-ranking';
 import { Cores } from '@/constants/cores';
 import { listarEventos, type Evento } from '@/services/eventoService';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function RankingScreen() {
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -36,11 +37,27 @@ export default function RankingScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.titulos}>
-        <Text accessibilityRole="header" style={styles.titulo}>
-          Ranking
-        </Text>
-        <Text style={styles.subtitulo}>Participantes ordenados por pontuação</Text>
+      <View style={styles.conteudo}>
+      <View style={styles.cabecalho}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/home');
+            }
+          }}
+          style={styles.botaoVoltar}>
+          <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+        </Pressable>
+
+        <View style={styles.titulos}>
+          <Text accessibilityRole="header" style={styles.titulo}>
+            Ranking
+          </Text>
+        </View>
       </View>
 
       {carregando ? (
@@ -92,6 +109,7 @@ export default function RankingScreen() {
           <ListaRanking eventoId={eventoId} />
         </>
       )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -130,4 +148,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   botaoSecundarioTexto: { color: Cores.texto, fontSize: 15, fontWeight: '600' },
+  botaoVoltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
+  },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  conteudo: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 20 },
 });
