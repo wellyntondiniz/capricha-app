@@ -104,7 +104,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     cor: Cores.vinhoEscuro,
     rota: '/avaliar-aplicativo',
     xp: '—',
-    status: { tipo: 'bloqueado', texto: 'Disponível ao final do evento' },
+    status: { tipo: 'progresso', atual: 0, total: 1, texto: 'Questionário disponível' },
   },
 ];
 
