@@ -13,7 +13,6 @@ const ABAS: { name: string; titulo: string; ativo: Icone; inativo: Icone }[] = [
   { name: 'eventos', titulo: 'Eventos', ativo: 'calendar', inativo: 'calendar-outline' },
   { name: 'ranking', titulo: 'Ranking', ativo: 'trophy', inativo: 'trophy-outline' },
   { name: 'perfil', titulo: 'Perfil', ativo: 'person', inativo: 'person-outline' },
-  { name: 'configuracoes', titulo: 'Configurações', ativo: 'settings', inativo: 'settings-outline' },
 ];
 
 export default function TabsLayout() {
