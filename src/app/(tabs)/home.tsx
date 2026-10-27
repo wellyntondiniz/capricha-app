@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { checkInProgress } from '@/features/check-in/check-in-progress';
 import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
+import { httpVotacaoService, type VotacaoSituacao } from '@/features/votacao/http-votacao-service';
 import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
 import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
 import type { ResumoConexoes } from '@/features/conexoes/types';
@@ -97,7 +98,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     cor: Cores.vinho,
     rota: '/votar-poster',
     xp: '+100 XP',
-    status: { tipo: 'progresso', atual: 0, total: 1, texto: '0 de 1 voto' },
+    status: { tipo: 'progresso', atual: 0, total: 3, texto: 'Até 3 votos por evento' },
   },
   {
     id: 'avaliar-aplicativo',
@@ -132,6 +133,7 @@ export default function HomeScreen() {
   const [eventoCheckIn, setEventoCheckIn] = useState<CheckInEvent>();
   const [palestrasCheckIn, setPalestrasCheckIn] = useState<CheckInEvent[]>([]);
   const [estadoCheckIn, setEstadoCheckIn] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
+  const [situacaoVoto, setSituacaoVoto] = useState<VotacaoSituacao>();
   const [eventoConexao, setEventoConexao] = useState<CheckInEvent>();
   const [resumoConexoes, setResumoConexoes] = useState<ResumoConexoes | null>(null);
 
@@ -151,6 +153,13 @@ export default function HomeScreen() {
   const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE.map(item => {
     if (item.id === 'check-in-evento') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.eventStatus : aguardando };
     if (item.id === 'check-in-palestras') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.lectureStatus : aguardando };
+    if (item.id === 'votar-poster' && situacaoVoto) {
+      const texto = `${situacaoVoto.votesUsed} de ${situacaoVoto.votesLimit} votos`;
+      const status: StatusMissao = situacaoVoto.votesRemaining === 0
+        ? { tipo: 'concluido', texto }
+        : { tipo: 'progresso', atual: situacaoVoto.votesUsed, total: situacaoVoto.votesLimit, texto };
+      return { ...item, status };
+    }
     if (item.id === 'conectar-pessoas') return { ...item, status: conexoesProgress(estadoCheckIn, eventoConexao, resumoConexoes) };
     return item;
   });
@@ -163,6 +172,7 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => {
     let ativo = true;
     if (!usuario?.token) return;
+    const token = usuario.token;
     setEstadoCheckIn('carregando');
     Promise.all([
       httpCheckInService.getEvents(usuario.token),
@@ -183,6 +193,15 @@ export default function HomeScreen() {
         setNomeEventoAtivo(eventos[0]?.nome || 'Nenhum evento disponível');
         setPalestrasCheckIn(palestras);
         setEstadoCheckIn('pronto');
+        // Progresso dos votos no mesmo evento; se falhar, o card mantém o texto padrão.
+        if (eventos[0]) {
+          httpVotacaoService
+            .getSituacao(eventos[0].id, token)
+            .then((situacao) => ativo && setSituacaoVoto(situacao))
+            .catch(() => ativo && setSituacaoVoto(undefined));
+        } else {
+          setSituacaoVoto(undefined);
+        }
       })
       .catch((error: unknown) => {
         if (!ativo) return;
