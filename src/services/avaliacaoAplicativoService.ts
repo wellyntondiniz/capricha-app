@@ -4,7 +4,6 @@ import { ErroApi, lerErroApi } from './erro-api';
 export type PerguntaAvaliacao = {
   id: number;
   texto: string;
-  ordem: number;
 };
 
 export type RespostaAvaliacao = {
