@@ -1,18 +1,21 @@
+import { ThemedText } from '@/components/themed-text';
 import { Alternativa } from '@/services/alternativaService';
 import { Palestra } from '@/services/palestraService';
-import { listarPerguntas, Pergunta } from '@/services/perguntaService';
-import { erro } from '@/utils/notify';
+import { deletarPerguntaById, listarPerguntas, Pergunta } from '@/services/perguntaService';
+import { erro, sucesso } from '@/utils/notify';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 type PerguntaComPalestra = {
@@ -25,7 +28,70 @@ export default function ListarPerguntas() {
 
   const [perguntas, setPerguntas] = useState<PerguntaComPalestra[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro_, setErro] = useState<string | null>(null);
+  const [modalExcluirVisivel, setModalExcluirVisivel] = useState(false);
+  const [perguntaParaExcluir, setPerguntaParaExcluir] = useState<number | undefined>(undefined);
+  const [excluindo, setExcluindo] = useState(false);
+
+  const deletarPergunta = async (id: number | undefined) => {
+  if (id === undefined) {
+    erro('Erro', 'Não foi possível identificar a pergunta.');
+    return;
+  }
+  try {
+    await deletarPerguntaById(id);
+
+    setPerguntas((listaAtual) =>
+      listaAtual.filter(
+        (item) => item.pergunta.id !== id
+      )
+    );
+
+    sucesso('Sucesso', 'Pergunta excluída com sucesso.');
+  } catch (error) {
+    console.error('Erro ao excluir pergunta:', error);
+    erro('Erro', 'Não foi possível excluir a pergunta.');
+  }
+
+};
+
+const solicitarExclusao = (id?: number) => {
+  if (id === undefined) {
+    erro('Erro', 'Não foi possível identificar a pergunta.');
+    return;
+  }
+
+  setPerguntaParaExcluir(id);
+  setModalExcluirVisivel(true);
+};
+
+const confirmarExclusao = async () => {
+  if (perguntaParaExcluir === undefined || excluindo) {
+    return;
+  }
+
+  try {
+    setExcluindo(true);
+
+    await deletarPergunta(perguntaParaExcluir);
+
+    setPerguntas((listaAtual) =>
+      listaAtual.filter(
+        (item) => item.pergunta.id !== perguntaParaExcluir
+      )
+    );
+
+    setModalExcluirVisivel(false);
+    setPerguntaParaExcluir(undefined);
+
+    sucesso('Sucesso', 'Pergunta excluída com sucesso.');
+  } catch (error) {
+    console.error('Erro ao excluir pergunta:', error);
+    erro('Erro', 'Não foi possível excluir a pergunta.');
+  } finally {
+    setExcluindo(false);
+  }
+};
 
   useEffect(() => {
    async function carregarPerguntas() {
@@ -103,6 +169,31 @@ export default function ListarPerguntas() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
+          {/* Botões do cabeçalho */}
+          <View style={styles.botoesCabecalho}>
+            <Pressable
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                }
+              }}
+              hitSlop={8}>
+              <ThemedText themeColor="text" style={styles.voltar}>
+                {'← Voltar'}
+              </ThemedText>
+            </Pressable>
+
+            {/* Adicionar — direita */}
+            <TouchableOpacity
+              style={styles.botao}
+              activeOpacity={0.7}
+              onPress={() => router.push("/cadastro-perguntas")}
+            >
+              <Text style={styles.botaoTexto}>
+                +
+              </Text>
+            </TouchableOpacity>
+          </View>
           {/* Cabeçalho */}
           <View style={styles.logo}>
             <View style={styles.logoIcon}>
@@ -140,9 +231,9 @@ export default function ListarPerguntas() {
                 color="#7B1B38"
                 style={styles.loading}
               />
-            ) : erro ? (
+            ) : erro_ ? (
               <Text style={styles.mensagem}>
-                {erro}
+                {erro_}
               </Text>
             ) : perguntas.length === 0 ? (
               <View style={styles.vazio}>
@@ -175,6 +266,19 @@ export default function ListarPerguntas() {
                       {pergunta.enunciado ??
                         'Pergunta sem enunciado'}
                     </Text>
+
+                    <TouchableOpacity
+                      style={styles.botaoEditar}
+                      activeOpacity={0.7}
+                      onPress={() => router.push({
+                        pathname: '/editar-pergunta',
+                        params: { id: String(pergunta.id) },
+                      })}
+                    >
+                      <Text style={styles.botaoEE}>
+                        🖊
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Alternativas */}
@@ -207,21 +311,20 @@ export default function ListarPerguntas() {
                           ? `Palestra #${pergunta.palestra.id}`
                           : 'Palestra não informada')}
                     </Text>
+
+                    <TouchableOpacity
+                      style={styles.botaoExcluir}
+                      activeOpacity={0.7}
+                      onPress={() => solicitarExclusao(pergunta.id)}
+                    >
+                      <Text style={styles.botaoEE}>
+                        🗑
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))
             )}
-
-            {/* Retornar */}
-            <TouchableOpacity
-              style={styles.botaoRetornar}
-              activeOpacity={0.7}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.botaoTexto}>
-                ← Retornar
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <Text style={styles.footer}>
@@ -229,6 +332,54 @@ export default function ListarPerguntas() {
           </Text>
         </View>
       </ScrollView>
+      <Modal
+        visible={modalExcluirVisivel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalExcluirVisivel(false)}
+      >
+        <View style={styles.modalFundo}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIcone}>
+              <Text style={styles.modalIconeTexto}>!</Text>
+            </View>
+
+            <Text style={styles.modalTitulo}>
+              Excluir pergunta?
+            </Text>
+
+            <Text style={styles.modalMensagem}>
+              Tem certeza de que deseja excluir esta pergunta?
+              Essa ação não pode ser desfeita.
+            </Text>
+
+            <View style={styles.modalBotoes}>
+              <Pressable
+                style={styles.botaoCancelar}
+                onPress={() => {
+                  setModalExcluirVisivel(false);
+                  setPerguntaParaExcluir(undefined);
+                }}
+                disabled={excluindo}
+              >
+                <Text style={styles.textoBotaoCancelar}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.botaoConfirmarExcluir}
+                onPress={confirmarExclusao}
+                disabled={excluindo}
+              >
+                <Text style={styles.textoBotaoExcluir}>
+                  {excluindo ? 'Excluindo...' : 'Excluir'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -464,21 +615,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  botaoRetornar: {
+  botoesCabecalho: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     width: '100%',
-    height: 42,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#7B1B38',
-    borderRadius: 6,
+    marginBottom: 16,
+  },
+
+  botao: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#7B1B38',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   botaoTexto: {
     color: '#E6EDF3',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: 'bold',
   },
 
   footer: {
@@ -487,5 +644,121 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
     fontSize: 12,
+  },
+
+  botaoExcluir: {
+    marginLeft: 'auto',
+    padding: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 4,
+    backgroundColor: '#872332',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  botaoEditar: {
+    marginLeft: 'auto',
+    padding: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 4,
+    backgroundColor: '#1450aa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  botaoEE: {
+    fontSize: 18,
+    color: '#FCE7EB',
+  },
+
+  modalFundo: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 24,
+},
+
+modalCard: {
+  width: '100%',
+  maxWidth: 420,
+  backgroundColor: '#171B26',
+  borderRadius: 20,
+  padding: 24,
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#303544',
+},
+
+modalIcone: {
+  width: 52,
+  height: 52,
+  borderRadius: 26,
+  backgroundColor: '#3B202B',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 16,
+},
+
+modalIconeTexto: {
+  color: '#F87171',
+  fontSize: 28,
+  fontWeight: 'bold',
+},
+
+modalTitulo: {
+  color: '#FFFFFF',
+  fontSize: 20,
+  fontWeight: 'bold',
+  textAlign: 'center',
+  marginBottom: 10,
+},
+
+modalMensagem: {
+  color: '#AAB1C2',
+  fontSize: 14,
+  textAlign: 'center',
+  lineHeight: 21,
+  marginBottom: 24,
+},
+
+modalBotoes: {
+  flexDirection: 'row',
+  width: '100%',
+  gap: 12,
+},
+
+botaoCancelar: {
+  flex: 1,
+  paddingVertical: 13,
+  borderRadius: 10,
+  backgroundColor: '#292F3D',
+  alignItems: 'center',
+},
+
+textoBotaoCancelar: {
+  color: '#FFFFFF',
+  fontWeight: '600',
+},
+
+botaoConfirmarExcluir: {
+  flex: 1,
+  paddingVertical: 13,
+  borderRadius: 10,
+  backgroundColor: '#7B1B38',
+  alignItems: 'center',
+},
+
+textoBotaoExcluir: {
+  color: '#FFFFFF',
+  fontWeight: 'bold',
+},
+
+voltar: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

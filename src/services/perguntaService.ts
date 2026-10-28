@@ -53,3 +53,13 @@ export async function atualizarPergunta(
 
   return res.json();
 }
+
+export async function deletarPerguntaById(
+  id: number,
+): Promise<void> {
+  const res = await fetch(`${URL}/deletar/${id}`, {
+    method: 'PUT'
+  });
+
+  if (!res.ok) throw new Error('Erro ao deletar pergunta');
+}
