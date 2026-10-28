@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
 import {
   Image,
   Platform,
@@ -22,6 +22,7 @@ import {
   obterUrlFotoUsuario,
   removerFotoPerfil,
 } from '@/services/usuarioService';
+import { router } from 'expo-router';
 
 function iniciais(nome: string) {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
@@ -169,6 +170,21 @@ export default function PerfilScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.conteudo}>
+          <View style={styles.cabecalho}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Voltar"
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/(tabs)/home');
+                }
+              }}
+              style={styles.botaoVoltar}>
+              <Ionicons name="arrow-back" size={22} color={Cores.texto} />
+            </Pressable>
+          </View>
           {/* Header com Avatar Interativo */}
           <View style={styles.header}>
             <Pressable
@@ -274,6 +290,17 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     borderWidth: 2,
     borderColor: Cores.destaque,
+  },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  botaoVoltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Cores.superficie,
+    borderWidth: 1,
+    borderColor: Cores.borda,
   },
   avatarFallback: {
     backgroundColor: Cores.vinho,
