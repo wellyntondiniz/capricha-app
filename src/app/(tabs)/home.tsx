@@ -24,6 +24,8 @@ import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
 import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
 import type { ResumoConexoes } from '@/features/conexoes/types';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
+import { listarPorEvento } from '@/services/participacaoService';
+import { metricasUsuario } from '@/services/metricas-usuario';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
@@ -136,6 +138,9 @@ export default function HomeScreen() {
   const [situacaoVoto, setSituacaoVoto] = useState<VotacaoSituacao>();
   const [eventoConexao, setEventoConexao] = useState<CheckInEvent>();
   const [resumoConexoes, setResumoConexoes] = useState<ResumoConexoes | null>(null);
+  const [metricas, setMetricas] = useState<{ pontos: number; posicao: number | null }>();
+  const [estadoMetricas, setEstadoMetricas] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
+  const [estadoVoto, setEstadoVoto] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
 
   const nomeCompleto = usuario?.nome || 'Participante';
   const primeiroNome = nomeCompleto.split(' ')[0];
@@ -150,7 +155,7 @@ export default function HomeScreen() {
   const progresso = checkInProgress(eventoCheckIn, palestrasCheckIn);
   const aguardando: StatusMissao = { tipo: 'progresso', atual: 0, total: 0,
     texto: estadoCheckIn === 'erro' ? 'Não foi possível consultar a presença' : 'Consultando presença...' };
-  const atalhos = ehAdmin ? ATALHOS_ADMIN : ATALHOS_PARTICIPANTE.map(item => {
+  const missoes = ATALHOS_PARTICIPANTE.map(item => {
     if (item.id === 'check-in-evento') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.eventStatus : aguardando };
     if (item.id === 'check-in-palestras') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.lectureStatus : aguardando };
     if (item.id === 'votar-poster' && situacaoVoto) {
@@ -160,20 +165,36 @@ export default function HomeScreen() {
         : { tipo: 'progresso', atual: situacaoVoto.votesUsed, total: situacaoVoto.votesLimit, texto };
       return { ...item, status };
     }
+    if (item.id === 'votar-poster') return { ...item, status: {
+      tipo: 'progresso' as const, atual: 0, total: 0,
+      texto: estadoVoto === 'erro' ? 'Não foi possível consultar os votos' : 'Consultando votos...',
+    } };
     if (item.id === 'conectar-pessoas') return { ...item, status: conexoesProgress(estadoCheckIn, eventoConexao, resumoConexoes) };
     return item;
   });
 
+  const atalhos = ehAdmin ? ATALHOS_ADMIN : missoes;
   const totalMissoes = ATALHOS_PARTICIPANTE.length;
-  const missoesConcluidas = atalhos.filter(
+  const missoesConcluidas = missoes.filter(
     (m) => m.status?.tipo === 'concluido'
   ).length;
+  const pontosTexto = metricas ? String(metricas.pontos) : estadoMetricas === 'erro' ? '—' : '...';
+  const rankingTexto = metricas ? (metricas.posicao === null ? '—' : `${metricas.posicao}º`)
+    : estadoMetricas === 'erro' ? '—' : '...';
+  // Cada missão confirmada conta, mesmo se votos ou conexões estiverem indisponíveis.
+  const conquistasTexto = estadoCheckIn === 'pronto' ? String(missoesConcluidas)
+    : estadoCheckIn === 'erro' ? '—' : '...';
 
   useFocusEffect(useCallback(() => {
     let ativo = true;
     if (!usuario?.token) return;
     const token = usuario.token;
     setEstadoCheckIn('carregando');
+    setMetricas(undefined);
+    setEstadoMetricas('carregando');
+    setSituacaoVoto(undefined);
+    setEstadoVoto('carregando');
+    setResumoConexoes(null);
     Promise.all([
       httpCheckInService.getEvents(usuario.token),
       httpCheckInService.getLectures(usuario.token),
@@ -193,19 +214,34 @@ export default function HomeScreen() {
         setNomeEventoAtivo(eventos[0]?.nome || 'Nenhum evento disponível');
         setPalestrasCheckIn(palestras);
         setEstadoCheckIn('pronto');
+        if (eventos[0]) {
+          listarPorEvento(eventos[0].id)
+            .then(participacoes => {
+              if (!ativo) return;
+              setMetricas(metricasUsuario(participacoes, usuario.id!));
+              setEstadoMetricas('pronto');
+            })
+            .catch(() => { if (ativo) setEstadoMetricas('erro'); });
+        } else {
+          setMetricas({ pontos: 0, posicao: null });
+          setEstadoMetricas('pronto');
+        }
         // Progresso dos votos no mesmo evento; se falhar, o card mantém o texto padrão.
         if (eventos[0]) {
           httpVotacaoService
             .getSituacao(eventos[0].id, token)
-            .then((situacao) => ativo && setSituacaoVoto(situacao))
-            .catch(() => ativo && setSituacaoVoto(undefined));
+            .then((situacao) => { if (ativo) { setSituacaoVoto(situacao); setEstadoVoto('pronto'); } })
+            .catch(() => { if (ativo) { setSituacaoVoto(undefined); setEstadoVoto('erro'); } });
         } else {
           setSituacaoVoto(undefined);
+          setEstadoVoto('pronto');
         }
       })
       .catch((error: unknown) => {
         if (!ativo) return;
         setEstadoCheckIn('erro');
+        setEstadoMetricas('erro');
+        setEstadoVoto('erro');
         setNomeEventoAtivo('Não foi possível consultar o evento');
         if (error instanceof CheckInError && error.code === 'AUTH_REQUIRED') void deslogar();
       });
@@ -336,12 +372,12 @@ export default function HomeScreen() {
           <View
             style={styles.painelMissoes}
             accessible
-            accessibilityLabel="Painel de missões e pontuação: 250 pontos XP, 3º no ranking, 2 conquistas">
+            accessibilityLabel={`Painel do evento: ${pontosTexto} pontos XP, posição ${rankingTexto}, ${conquistasTexto} missões concluídas`}>
             <View style={styles.painelMetricas}>
               <View style={styles.metricaItem}>
                 <Ionicons name="star" size={28} color="#FBBF24" />
                 <View style={styles.metricaTextos}>
-                  <Text style={styles.metricaValor}>250</Text>
+                  <Text style={styles.metricaValor}>{pontosTexto}</Text>
                   <Text style={styles.metricaRotulo}>pontos (XP)</Text>
                 </View>
               </View>
@@ -350,8 +386,8 @@ export default function HomeScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="3º no ranking. Toque para abrir o ranking completo"
-                onPress={() => router.navigate('/(tabs)/ranking')}
+                accessibilityLabel={`${rankingTexto} no ranking do evento. Toque para abrir o ranking completo`}
+                onPress={() => eventoCheckIn ? router.navigate({ pathname: '/ranking-evento', params: { eventoId: eventoCheckIn.id } }) : router.navigate('/(tabs)/ranking')}
                 style={(state) => [
                   styles.metricaItem,
                   styles.metricaItemInterativa,
@@ -360,7 +396,7 @@ export default function HomeScreen() {
                 ]}>
                 <Ionicons name="stats-chart" size={26} color={Cores.destaque} />
                 <View style={styles.metricaTextos}>
-                  <Text style={styles.metricaValor}>3º</Text>
+                  <Text style={styles.metricaValor}>{rankingTexto}</Text>
                   <Text style={styles.metricaRotulo}>no ranking ↗</Text>
                 </View>
               </Pressable>
@@ -370,7 +406,7 @@ export default function HomeScreen() {
               <View style={styles.metricaItem}>
                 <Ionicons name="ribbon" size={28} color="#34D399" />
                 <View style={styles.metricaTextos}>
-                  <Text style={styles.metricaValor}>2</Text>
+                  <Text style={styles.metricaValor}>{conquistasTexto}</Text>
                   <Text style={styles.metricaRotulo}>conquistas</Text>
                 </View>
               </View>
