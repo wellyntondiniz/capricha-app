@@ -5,13 +5,13 @@ import { Platform } from "react-native";
 const enderecoConfigurado = process.env.EXPO_PUBLIC_API_URL
   ?? Constants.expoConfig?.extra?.apiUrl as string | undefined;
 const BASE_URL = (enderecoConfigurado ?? Platform.select({
-  android: 'http://10.0.2.2:8080',
-  default: 'http://localhost:8080',
-}) ?? 'http://localhost:8080').replace(/\/$/, '');
+  android: 'http://10.0.2.2:8081',
+  default: 'http://localhost:8081',
+}) ?? 'http://localhost:8081').replace(/\/$/, '');
 
 export default BASE_URL;
 
-const PORTA = "8080";
+const PORTA = "8081";
 
 function resolverUrlBase(): string {
   const manual = enderecoConfigurado;

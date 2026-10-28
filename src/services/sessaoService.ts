@@ -32,11 +32,21 @@ export async function validarSessao(token: string): Promise<Usuario> {
   return res.json();
 }
 
-export async function encerrarSessao(token: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/auth/logout`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10000),
-  });
+// Encerra a sessão no servidor em regime de "melhor esforço".
+// Devolve true quando o servidor confirmou o encerramento (ou a sessão já era inválida)
+// e false quando a API está inacessível (offline, fora do ar, timeout).
+// Erros reais do servidor (ex.: 500) continuam sendo lançados.
+export async function encerrarSessao(token: string): Promise<boolean> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    return false;
+  }
   if (!res.ok && res.status !== 401) throw new Error('Não foi possível encerrar a sessão no servidor.');
+  return true;
 }

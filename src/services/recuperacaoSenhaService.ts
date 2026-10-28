@@ -6,10 +6,10 @@ import { ErroApi, lerErroApi } from './erro-api';
 function urlBase(): string {
   const manual = process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl as string | undefined;
   if (manual) return manual.replace(/\/$/, '');
-  if (Platform.OS === 'web') return 'http://localhost:8080';
+  if (Platform.OS === 'web') return 'http://localhost:8081';
   const hostUri = Constants.expoConfig?.hostUri ?? (Constants as any).expoGoConfig?.debuggerHost ?? '';
   const host = hostUri.split(':')[0];
-  return host ? `http://${host}:8080` : 'http://localhost:8080';
+  return host ? `http://${host}:8081` : 'http://localhost:8081';
 }
 
 async function post(path: string, body: object) {

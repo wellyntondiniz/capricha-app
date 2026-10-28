@@ -1,6 +1,6 @@
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CampoFormulario } from '@/components/campo-formulario';
@@ -34,8 +34,12 @@ export default function EsqueciSenha() {
     setCarregando(true);
     try {
       const resposta = await recuperacaoSenhaService.solicitar(valores.email.trim().toLowerCase());
-      setMensagem({ texto: resposta.mensagem, tipo: 'info' });
-      if (resposta.desafio) router.push({ pathname: '/codigo-recuperacao', params: {
+      // Só avança com uma solicitação válida (código enviado, com desafio); senão permanece nesta tela.
+      if (!resposta.desafio) {
+        setMensagem({ texto: resposta.mensagem || 'Não foi possível continuar a recuperação de senha.', tipo: 'erro' });
+        return;
+      }
+      router.push({ pathname: '/codigo-recuperacao', params: {
         desafio: resposta.desafio, simulado: String(resposta.simulado), canal: 'email',
       } });
     } catch (erro) {
@@ -52,7 +56,7 @@ export default function EsqueciSenha() {
     <Text style={s.heading}>Recuperar senha</Text>
     <View style={s.card}>
       <Text style={s.title}>Recuperação de senha</Text>
-      <Text style={s.description}>Informe o e-mail cadastrado. Enviaremos um código de 6 dígitos válido por 10 minutos. No modo local, o código aparece no terminal da API.</Text>
+      <Text style={s.description}>Informe o e-mail cadastrado. Se ele tiver uma conta ativa, enviaremos um código de 6 dígitos válido por 10 minutos. No modo local, o código aparece no terminal da API.</Text>
       <CampoFormulario
         rotulo="E-mail cadastrado"
         erro={erros.email}
