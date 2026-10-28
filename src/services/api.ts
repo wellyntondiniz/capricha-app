@@ -4,18 +4,12 @@ import { Platform } from "react-native";
 // Login principal e check-in compartilham a mesma origem (sem o antigo sufixo /api).
 const enderecoConfigurado = process.env.EXPO_PUBLIC_API_URL
   ?? Constants.expoConfig?.extra?.apiUrl as string | undefined;
-const BASE_URL = (enderecoConfigurado ?? Platform.select({
-  android: 'http://10.0.2.2:8081',
-  default: 'http://localhost:8081',
-}) ?? 'http://localhost:8081').replace(/\/$/, '');
 
-export default BASE_URL;
-
-const PORTA = "8081";
+const PORTA = "8080";
 
 function resolverUrlBase(): string {
   const manual = enderecoConfigurado;
-  if (manual) return manual;
+  if (manual) return manual.replace(/\/$/, '');
 
   if (Platform.OS === "web") {
     return `http://localhost:${PORTA}`;
@@ -28,10 +22,17 @@ function resolverUrlBase(): string {
   const host = hostUri.split(":")[0];
   if (host) return `http://${host}:${PORTA}`;
 
+  if (Platform.OS === "android") {
+    return `http://10.0.2.2:${PORTA}`;
+  }
+
   return `http://localhost:${PORTA}`;
 }
 
-const API_URL = resolverUrlBase();
+const BASE_URL = resolverUrlBase();
+export default BASE_URL;
+
+const API_URL = BASE_URL;
 
 export type ApiError = { status: number; message: string };
 

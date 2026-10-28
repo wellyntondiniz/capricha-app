@@ -20,5 +20,6 @@ export async function lerErroApi(resposta: Response, mensagemPadrao: string): Pr
   } catch {
     // Resposta sem JSON: usa a mensagem padrão.
   }
-  return new ErroApi(resposta.status, corpo.mensagem ?? mensagemPadrao, corpo.campos ?? {});
+  const mensagem = corpo.mensagem ?? (corpo as any).message ?? (corpo as any).error ?? mensagemPadrao;
+  return new ErroApi(resposta.status, mensagem, corpo.campos ?? {});
 }
