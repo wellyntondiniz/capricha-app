@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BannerResumo } from '@/components/banner-resumo';
 import { Cores } from '@/constants/cores';
+import { useAuth } from '@/contexts/AuthContext';
+import { CheckInError } from '@/features/check-in/types';
+import { httpVotacaoService, type ResumoQrCode } from '@/features/votacao/http-votacao-service';
 import { buscarEventoPorId } from '@/services/eventoService';
 import { excluirResumo, listarResumosDoEvento, type Resumo } from '@/services/resumoService';
 import { erro as notificarErro, sucesso } from '@/utils/notify';
@@ -14,6 +17,9 @@ export default function ResumosScreen() {
   const { eventoId: eventoIdParam } = useLocalSearchParams<{ eventoId?: string }>();
   const eventoId = Number(eventoIdParam);
   const eventoValido = Number.isInteger(eventoId) && eventoId > 0;
+  const { usuario, deslogar } = useAuth();
+  const token = usuario?.token ?? '';
+  const admin = ['ADMIN', 'ADMINISTRADOR'].includes(usuario?.perfil?.toUpperCase() ?? '');
 
   const [nomeEvento, setNomeEvento] = useState('');
   const [resumos, setResumos] = useState<Resumo[]>([]);
@@ -22,6 +28,12 @@ export default function ResumosScreen() {
 
   const [paraExcluir, setParaExcluir] = useState<Resumo | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+
+  // QR Code de votação do pôster (somente administrador).
+  const [qrResumo, setQrResumo] = useState<Resumo | null>(null);
+  const [qrCode, setQrCode] = useState<ResumoQrCode | null>(null);
+  const [qrCarregando, setQrCarregando] = useState(false);
+  const qrRequisicaoRef = useRef(0);
 
   const carregar = useCallback(async () => {
     if (!eventoValido) return;
@@ -51,6 +63,35 @@ export default function ResumosScreen() {
 
   function abrirDetalhe(resumo: Resumo) {
     router.push({ pathname: '/resumo-detalhe', params: { id: String(resumo.id) } });
+  }
+
+  async function abrirQr(resumo: Resumo) {
+    const requisicao = ++qrRequisicaoRef.current;
+    setQrResumo(resumo);
+    setQrCode(null);
+    setQrCarregando(true);
+    try {
+      const qr = await httpVotacaoService.getQrCode(resumo.id, token);
+      if (qrRequisicaoRef.current === requisicao) setQrCode(qr);
+    } catch (e) {
+      if (qrRequisicaoRef.current !== requisicao) return;
+      setQrResumo(null);
+      if (e instanceof CheckInError && e.code === 'AUTH_REQUIRED') {
+        await deslogar();
+        router.replace('/');
+        return;
+      }
+      notificarErro('Não foi possível gerar o QR Code', e instanceof Error ? e.message : undefined);
+    } finally {
+      if (qrRequisicaoRef.current === requisicao) setQrCarregando(false);
+    }
+  }
+
+  function fecharQr() {
+    qrRequisicaoRef.current++;
+    setQrResumo(null);
+    setQrCode(null);
+    setQrCarregando(false);
   }
 
   function abrirFormulario(resumo?: Resumo) {
@@ -196,6 +237,17 @@ export default function ResumosScreen() {
                 </Pressable>
 
                 <View style={styles.cardAcoes}>
+                  {admin && (
+                    <Pressable
+                      onPress={() => void abrirQr(item)}
+                      hitSlop={8}
+                      style={({ pressed }) => [styles.acaoBtn, pressed && { opacity: 0.7 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Gerar QR Code de votação de ${item.titulo}`}>
+                      <Ionicons name="qr-code-outline" size={16} color={Cores.vinhoClaro} />
+                      <Text style={styles.acaoEditar}>QR Code</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     onPress={() => abrirFormulario(item)}
                     hitSlop={8}
@@ -245,6 +297,29 @@ export default function ResumosScreen() {
                   )}
                 </Pressable>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={qrResumo !== null} transparent animationType="fade" onRequestClose={fecharQr}>
+          <View style={styles.overlay}>
+            <View style={[styles.modal, styles.modalQr]}>
+              <Text style={styles.modalRotulo}>QR CODE DO PÔSTER</Text>
+              <Text style={styles.modalTitulo}>{qrResumo?.titulo}</Text>
+              {qrCarregando && <ActivityIndicator color={Cores.destaque} style={styles.qrCarregando} />}
+              {qrCode && (
+                <Image
+                  source={{ uri: qrCode.imageData }}
+                  style={styles.qrImagem}
+                  accessibilityLabel="QR Code de votação do resumo"
+                />
+              )}
+              <Text style={styles.modalTexto}>
+                Imprima no pôster. Ao escanear, o participante abre a confirmação do voto; só vota quem fez check-in.
+              </Text>
+              <Pressable onPress={fecharQr} style={({ pressed }) => [styles.botaoSecundario, styles.botaoFechar, pressed && { opacity: 0.7 }]}>
+                <Text style={styles.botaoSecundarioTexto}>Fechar</Text>
+              </Pressable>
             </View>
           </View>
         </Modal>
@@ -359,6 +434,11 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 10,
   },
+  modalQr: { alignItems: 'center' },
+  modalRotulo: { color: Cores.destaque, fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  qrCarregando: { marginVertical: 24 },
+  qrImagem: { width: '100%', maxWidth: 280, aspectRatio: 1, marginVertical: 10, backgroundColor: '#FFFFFF' },
+  botaoFechar: { flex: 0, alignSelf: 'stretch', marginTop: 6 },
   modalTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700' },
   modalTexto: { color: Cores.textoSuave, fontSize: 14, lineHeight: 21 },
   modalAcoes: { flexDirection: 'row', gap: 10, marginTop: 10 },
@@ -384,4 +464,3 @@ const styles = StyleSheet.create({
   },
   botaoPerigoTexto: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });
-
