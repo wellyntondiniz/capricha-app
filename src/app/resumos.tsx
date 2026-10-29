@@ -107,7 +107,7 @@ export default function ResumosScreen() {
     try {
       await excluirResumo(paraExcluir.id);
       setResumos((atual) => atual.filter((r) => r.id !== paraExcluir.id));
-      sucesso('Resumo excluído');
+      sucesso('Sucesso', 'Resumo excluído com sucesso');
     } catch (e) {
       notificarErro('Não foi possível excluir', e instanceof Error ? e.message : undefined);
     } finally {

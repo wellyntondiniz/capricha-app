@@ -115,18 +115,18 @@ export default function EditarPergunta() {
     }
 
     if (!enunciado.trim()) {
-      erro('Atenção', 'Digite o enunciado da pergunta.');
+      erro('Campo obrigatório', 'Digite o enunciado da pergunta.');
       return;
     }
 
     if (alternativas.some((a) => !a.texto.trim())) {
-      erro('Atenção', 'Preencha as quatro alternativas.');
+      erro('Campo obrigatório', 'Preencha as quatro alternativas.');
       return;
     }
 
     if (!alternativas.some((a) => a.correta)) {
       erro(
-        'Atenção',
+        'Campo obrigatório',
         'Selecione pelo menos uma alternativa correta.'
       );
       return;

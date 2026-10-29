@@ -180,12 +180,12 @@ export default function CadastroPalestra() {
     }
 
     if (!validarData(data)) {
-      erro('Data inválida', 'Digite uma data válida no formato DD/MM/AAAA.');
+      erro('Data inválida', 'Data no formato DD/MM/AAAA.');
       return;
     }
 
     if (!validarHorario(horario)) {
-      erro('Horário inválido', 'Digite um horário válido no formato HH:MM (00:00 não é permitido).');
+      erro('Horário inválido', 'Horário no formato HH:MM.');
       return;
     }
 
@@ -193,16 +193,17 @@ export default function CadastroPalestra() {
     let terminoISO: string | undefined;
     if (dataTermino.trim() || horarioTermino.trim()) {
       if (!validarData(dataTermino) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horarioTermino)) {
-        erro('Término inválido', 'Informe a data e o horário de término ou deixe ambos vazios.');
+        erro('Término inválido', 'Informe o término.');
         return;
       }
       const fim = paraDataHora(dataTermino, horarioTermino);
       if (fim <= dataHoraPalestra) {
-        erro('Término inválido', 'O término deve ser posterior ao início da palestra.');
+
+        erro('Término inválido', 'O término antes do início.');
         return;
       }
       if (eventoSelecionado.dataTermino && fim > new Date(eventoSelecionado.dataTermino)) {
-        erro('Fora do período do evento', 'O término da palestra não pode ultrapassar o término do evento.');
+        erro('Fora do período do evento', 'Palestra não pode terminar depois do evento.');
         return;
       }
       terminoISO = `${converterParaISO(dataTermino)}T${horarioTermino}:00`;
@@ -211,7 +212,7 @@ export default function CadastroPalestra() {
     if (dataHoraPalestra < agoraSemSegundos()) {
       erro(
         'Horário inválido',
-        'A palestra não pode ser cadastrada em uma data e horário que já passaram.'
+        'Data e hora indicados já passaram.'
       );
       return;
     }
@@ -269,9 +270,9 @@ export default function CadastroPalestra() {
       const erro_ = error as PalestraApiError;
 
       if (erro_.status === 409) {
-        mostrarAlerta(
+        erro(
           'Conflito de agenda',
-          erro_.message || 'Este palestrante já tem uma palestra cadastrada nesta data e horário.'
+          erro_.message || 'Palestrante já está em outra palestra nesta hora.'
         );
       } else {
         erro('Erro', erro_.message || 'Não foi possível salvar a palestra.');

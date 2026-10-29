@@ -19,13 +19,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { checkInProgress } from '@/features/check-in/check-in-progress';
 import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
-import { httpVotacaoService, type VotacaoSituacao } from '@/features/votacao/http-votacao-service';
 import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
 import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
 import type { ResumoConexoes } from '@/features/conexoes/types';
-import { obterUrlFotoUsuario } from '@/services/usuarioService';
-import { listarPorEvento } from '@/services/participacaoService';
+import { httpVotacaoService, type VotacaoSituacao } from '@/features/votacao/http-votacao-service';
 import { metricasUsuario } from '@/services/metricas-usuario';
+import { listarPorEvento } from '@/services/participacaoService';
+import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
@@ -99,7 +99,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     icone: 'document-text-outline',
     cor: Cores.vinho,
     rota: '/votar-poster',
-    xp: '+100 XP',
+    xp: '+50 XP',
     status: { tipo: 'progresso', atual: 0, total: 3, texto: 'Até 3 votos por evento' },
   },
   {
