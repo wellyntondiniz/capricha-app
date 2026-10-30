@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,18 +15,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Cores } from '@/constants/cores';
+import { useAuth } from '@/contexts/AuthContext';
 import { LectureCheckInAction } from '@/features/check-in/lecture-check-in-action';
 import {
+  excluirPalestra,
   listarPalestras,
   obterUrlImagemPalestra,
   Palestra,
+  PalestraApiError,
 } from '@/services/palestraService';
+import { erro, sucesso } from '@/utils/notify';
 
 export default function ListaPalestras() {
+  const { usuario } = useAuth();
+  const ehAdmin = ['ADMIN', 'ADMINISTRADOR'].includes(usuario?.perfil?.toUpperCase() ?? '');
+
   const [palestras, setPalestras] = useState<Palestra[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [mensagemErro, setMensagemErro] = useState('');
+
+  const [palestraParaExcluir, setPalestraParaExcluir] = useState<Palestra | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   const carregarPalestras = useCallback(async (atualizacao = false) => {
     if (atualizacao) {
@@ -51,6 +62,29 @@ export default function ListaPalestras() {
     }, [carregarPalestras])
   );
 
+  const editarPalestra = (palestra: Palestra) => {
+    if (palestra.id == null) return;
+    router.push({ pathname: '/cadastro-palestra', params: { id: String(palestra.id) } });
+  };
+
+  const confirmarExclusao = async () => {
+    if (!palestraParaExcluir?.id) return;
+
+    setExcluindo(true);
+    try {
+      await excluirPalestra(palestraParaExcluir.id, usuario?.token);
+      setPalestras((atuais) => atuais.filter((item) => item.id !== palestraParaExcluir.id));
+      setPalestraParaExcluir(null);
+      sucesso('Palestra excluída', 'A palestra foi removida com sucesso.');
+    } catch (error) {
+      const erroApi = error as PalestraApiError;
+      setPalestraParaExcluir(null);
+      erro('Não foi possível excluir', erroApi.message || 'Tente novamente.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.conteudo}>
@@ -65,17 +99,21 @@ export default function ListaPalestras() {
 
           <View style={styles.titulos}>
             <Text style={styles.titulo}>Palestras</Text>
-            <Text style={styles.subtitulo}>Confira a programação cadastrada</Text>
+            <Text style={styles.subtitulo}>
+              {ehAdmin ? 'Gerencie a programação cadastrada' : 'Confira a programação cadastrada'}
+            </Text>
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Cadastrar nova palestra"
-            style={styles.novaPalestra}
-            onPress={() => router.push('/cadastro-palestra')}>
-            <Ionicons name="add" size={22} color="#FFFFFF" />
-            <Text style={styles.novaPalestraTexto}>Nova</Text>
-          </Pressable>
+          {ehAdmin && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cadastrar nova palestra"
+              style={styles.novaPalestra}
+              onPress={() => router.push('/cadastro-palestra')}>
+              <Ionicons name="add" size={22} color="#FFFFFF" />
+              <Text style={styles.novaPalestraTexto}>Nova</Text>
+            </Pressable>
+          )}
         </View>
 
         {carregando ? (
@@ -109,7 +147,11 @@ export default function ListaPalestras() {
             ListEmptyComponent={
               <View style={styles.estadoVazio}>
                 <Text style={styles.estadoTitulo}>Nenhuma palestra cadastrada</Text>
-                <Text style={styles.textoSuave}>Use o botão Nova para cadastrar uma palestra.</Text>
+                <Text style={styles.textoSuave}>
+                  {ehAdmin
+                    ? 'Use o botão Nova para cadastrar uma palestra.'
+                    : 'As palestras aparecerão aqui assim que forem cadastradas.'}
+                </Text>
               </View>
             }
             renderItem={({ item }) => {
@@ -142,6 +184,27 @@ export default function ListaPalestras() {
                     )}
                     {!!item.descricao && <Text style={styles.descricao}>{item.descricao}</Text>}
                     <LectureCheckInAction lectureId={item.id} />
+
+                    {ehAdmin && (
+                      <View style={styles.acoesAdmin}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Editar a palestra ${item.nome ?? ''}`}
+                          style={styles.botaoEditar}
+                          onPress={() => editarPalestra(item)}>
+                          <Ionicons name="create-outline" size={16} color={Cores.vinhoClaro} />
+                          <Text style={styles.editarTexto}>Editar</Text>
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Excluir a palestra ${item.nome ?? ''}`}
+                          style={styles.botaoExcluir}
+                          onPress={() => setPalestraParaExcluir(item)}>
+                          <Ionicons name="trash-outline" size={16} color="#E5484D" />
+                          <Text style={styles.excluirTexto}>Excluir</Text>
+                        </Pressable>
+                      </View>
+                    )}
                   </View>
                 </View>
               );
@@ -149,6 +212,41 @@ export default function ListaPalestras() {
           />
         )}
       </View>
+
+      <Modal
+        visible={!!palestraParaExcluir}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !excluindo && setPalestraParaExcluir(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitulo}>Excluir palestra</Text>
+            <Text style={styles.modalTexto}>
+              Deseja realmente excluir a palestra{' '}
+              <Text style={styles.modalDestaque}>{palestraParaExcluir?.nome}</Text>? As perguntas
+              cadastradas nela também serão removidas. Essa ação não pode ser desfeita.
+            </Text>
+            <View style={styles.modalAcoes}>
+              <Pressable
+                style={styles.modalCancelar}
+                disabled={excluindo}
+                onPress={() => setPalestraParaExcluir(null)}>
+                <Text style={styles.modalCancelarTexto}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalConfirmar, excluindo && { opacity: 0.6 }]}
+                disabled={excluindo}
+                onPress={confirmarExclusao}>
+                {excluindo ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalConfirmarTexto}>Excluir</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -176,9 +274,24 @@ const styles = StyleSheet.create({
   eventoTag: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 12, backgroundColor: Cores.vinhoSuave },
   eventoTagTexto: { color: Cores.vinhoClaro, fontSize: 12, fontWeight: '700' },
   descricao: { color: Cores.inativo, fontSize: 13, lineHeight: 18, marginTop: 10 },
+  acoesAdmin: { flexDirection: 'row', gap: 10, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: Cores.borda },
+  botaoEditar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: Cores.vinhoClaro },
+  botaoExcluir: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5484D' },
+  editarTexto: { color: Cores.vinhoClaro, fontSize: 14, fontWeight: '600' },
+  excluirTexto: { color: '#E5484D', fontSize: 14, fontWeight: '600' },
   estadoVazio: { alignItems: 'center', padding: 28, borderRadius: 18, backgroundColor: Cores.superficie, borderWidth: 1, borderColor: Cores.borda },
   estadoTitulo: { color: Cores.texto, fontSize: 18, fontWeight: '700', textAlign: 'center', marginTop: 12, marginBottom: 6 },
   textoSuave: { color: Cores.textoSuave, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   tentarNovamente: { marginTop: 18, paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10, borderWidth: 1, borderColor: Cores.vinhoClaro },
   tentarNovamenteTexto: { color: Cores.vinhoClaro, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { width: '100%', maxWidth: 420, padding: 22, borderRadius: 16, backgroundColor: Cores.superficie, borderWidth: 1, borderColor: Cores.borda },
+  modalTitulo: { color: Cores.texto, fontSize: 20, fontWeight: '700', marginBottom: 10 },
+  modalTexto: { color: Cores.textoSuave, fontSize: 14, lineHeight: 21 },
+  modalDestaque: { color: Cores.texto, fontWeight: '700' },
+  modalAcoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 22 },
+  modalCancelar: { paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10, borderWidth: 1, borderColor: Cores.borda },
+  modalCancelarTexto: { color: Cores.texto, fontWeight: '600' },
+  modalConfirmar: { minWidth: 96, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10, backgroundColor: '#E5484D' },
+  modalConfirmarTexto: { color: '#FFFFFF', fontWeight: '700' },
 });
