@@ -42,7 +42,7 @@ type Atalho = {
 const ATALHOS_ADMIN: Atalho[] = [
   { id: 'eventos', titulo: 'Eventos', descricao: 'Veja os eventos disponíveis', icone: 'calendar', cor: Cores.vinho, rota: '/(tabs)/eventos' },
   { id: 'palestras', titulo: 'Palestras', descricao: 'Consulte as palestras de cada evento', icone: 'mic', cor: Cores.vinhoEscuro, rota: '/palestras' },
-  { id: 'perguntas', titulo: 'Perguntas', descricao: 'Visualize todas as perguntas', icone: 'list', cor: Cores.vinhoProfundo, rota: '/lista-perguntas' },
+  { id: 'quizzes', titulo: 'Quizzes', descricao: 'Monte quizzes com as perguntas das palestras', icone: 'help-circle', cor: Cores.destaque, rota: '/quizzes-adm' },
   { id: 'check-in-evento', titulo: 'Checkin do evento', descricao: 'Escaneie o QR Code e confirme sua presença', icone: 'qr-code', cor: Cores.vinho, rota: '/check-in' },
   { id: 'check-in-palestras', titulo: 'Checkin das palestras', descricao: 'Confirme sua presença nas palestras do evento', icone: 'qr-code-outline', cor: Cores.vinhoClaro, rota: '/check-in-palestras' },
 ];

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { cadastrarQuiz, listarQuizzes, NovaPergunta, Quiz } from '@/services/quizService';
+import { useAuth } from '@/contexts/AuthContext';
+import { listarPalestras, Palestra } from '@/services/palestraService';
+import { cadastrarQuiz, listarQuizzes, Quiz } from '@/services/quizService';
 
 const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
@@ -22,41 +25,46 @@ const mostrarAlerta = (titulo: string, mensagem: string) => {
   }
 };
 
-const novaPergunta = (): NovaPergunta => ({
-  enunciado: '',
-  alternativas: [
-    { texto: '', correta: true },
-    { texto: '', correta: false },
-  ],
-});
+// Limites alinhados com a API
+const TAMANHO_MAXIMO = 255;
+const TAMANHO_MINIMO_TITULO = 3;
+const PONTUACAO_MAXIMA = 1000;
 
+// As perguntas do quiz são as cadastradas na palestra escolhida (tela Cadastro de perguntas)
 export default function QuizzesAdmScreen() {
+  const { usuario } = useAuth();
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [pontuacao, setPontuacao] = useState('');
-  const [perguntas, setPerguntas] = useState<NovaPergunta[]>([novaPergunta()]);
+  const [palestras, setPalestras] = useState<Palestra[]>([]);
+  const [palestraId, setPalestraId] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [cadastrados, setCadastrados] = useState<Quiz[]>([]);
 
-  const carregarCadastrados = useCallback(async () => {
-    try {
-      setCadastrados(await listarQuizzes());
-    } catch {
-      setCadastrados([]);
-    }
+  const carregar = useCallback(async () => {
+    const [quizzes, lista] = await Promise.allSettled([listarQuizzes(), listarPalestras()]);
+    setCadastrados(quizzes.status === 'fulfilled' ? quizzes.value : []);
+    setPalestras(lista.status === 'fulfilled' ? lista.value : []);
   }, []);
 
-  useEffect(() => {
-    carregarCadastrados();
-  }, [carregarCadastrados]);
-
-  const alterarPergunta = (indice: number, alteracao: (p: NovaPergunta) => NovaPergunta) => {
-    setPerguntas((atual) => atual.map((p, i) => (i === indice ? alteracao(p) : p)));
-  };
+  // Recarrega ao voltar do cadastro de perguntas
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+    }, [carregar])
+  );
 
   const salvar = async () => {
+    if (!usuario?.token) {
+      mostrarAlerta('Sessão expirada', 'Faça login novamente para cadastrar quizzes.');
+      return;
+    }
     if (!titulo.trim()) {
       mostrarAlerta('Campo obrigatório', 'É necessário informar o título do quiz.');
+      return;
+    }
+    if (titulo.trim().length < TAMANHO_MINIMO_TITULO) {
+      mostrarAlerta('Título inválido', `O título precisa ter pelo menos ${TAMANHO_MINIMO_TITULO} caracteres.`);
       return;
     }
     const pontos = Number(pontuacao);
@@ -64,34 +72,36 @@ export default function QuizzesAdmScreen() {
       mostrarAlerta('Pontuação inválida', 'Informe uma pontuação inteira maior que zero.');
       return;
     }
-    for (const [i, p] of perguntas.entries()) {
-      if (!p.enunciado.trim()) {
-        mostrarAlerta('Pergunta incompleta', `Informe o enunciado da pergunta ${i + 1}.`);
-        return;
-      }
-      if (p.alternativas.some((a) => !a.texto.trim())) {
-        mostrarAlerta('Pergunta incompleta', `Preencha todas as alternativas da pergunta ${i + 1}.`);
-        return;
-      }
+    if (pontos > PONTUACAO_MAXIMA) {
+      mostrarAlerta('Pontuação inválida', `A pontuação pode ser no máximo ${PONTUACAO_MAXIMA}.`);
+      return;
+    }
+    if (palestraId === null) {
+      mostrarAlerta('Campo obrigatório', 'Selecione a palestra do quiz.');
+      return;
+    }
+    const tituloRepetido = cadastrados.some(
+      (quiz) => quiz.palestra.id === palestraId && quiz.titulo.trim().toLowerCase() === titulo.trim().toLowerCase()
+    );
+    if (tituloRepetido) {
+      mostrarAlerta('Quiz duplicado', 'Já existe um quiz com este título para a palestra selecionada.');
+      return;
     }
 
     setSalvando(true);
     try {
-      await cadastrarQuiz({
+      await cadastrarQuiz(usuario.token, {
         titulo: titulo.trim(),
         descricao: descricao.trim(),
         pontuacao: pontos,
-        perguntas: perguntas.map((p) => ({
-          enunciado: p.enunciado.trim(),
-          alternativas: p.alternativas.map((a) => ({ texto: a.texto.trim(), correta: a.correta })),
-        })),
+        palestraId,
       });
       mostrarAlerta('Sucesso', 'Quiz cadastrado com sucesso!');
       setTitulo('');
       setDescricao('');
       setPontuacao('');
-      setPerguntas([novaPergunta()]);
-      carregarCadastrados();
+      setPalestraId(null);
+      carregar();
     } catch (e) {
       mostrarAlerta('Erro', e instanceof Error ? e.message : 'Não foi possível cadastrar o quiz.');
     } finally {
@@ -114,6 +124,7 @@ export default function QuizzesAdmScreen() {
             placeholderTextColor="#777B86"
             value={titulo}
             onChangeText={setTitulo}
+            maxLength={TAMANHO_MAXIMO}
           />
 
           <Text style={styles.label}>Descrição</Text>
@@ -123,6 +134,7 @@ export default function QuizzesAdmScreen() {
             placeholderTextColor="#777B86"
             value={descricao}
             onChangeText={setDescricao}
+            maxLength={TAMANHO_MAXIMO}
           />
 
           <Text style={styles.label}>Pontuação</Text>
@@ -131,88 +143,36 @@ export default function QuizzesAdmScreen() {
             placeholder="Pontos para quem acertar tudo"
             placeholderTextColor="#777B86"
             keyboardType="number-pad"
+            maxLength={4}
             value={pontuacao}
             onChangeText={(texto) => setPontuacao(texto.replace(/\D/g, ''))}
           />
 
-          {perguntas.map((pergunta, indice) => (
-            <View key={indice} style={styles.pergunta}>
-              <View style={styles.linha}>
-                <Text style={styles.perguntaTitulo}>Pergunta {indice + 1}</Text>
-                {perguntas.length > 1 && (
-                  <Pressable onPress={() => setPerguntas((atual) => atual.filter((_, i) => i !== indice))}>
-                    <Text style={styles.link}>Remover</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Enunciado"
-                placeholderTextColor="#777B86"
-                value={pergunta.enunciado}
-                onChangeText={(texto) => alterarPergunta(indice, (p) => ({ ...p, enunciado: texto }))}
-              />
-
-              <Text style={styles.dica}>Toque no círculo para marcar a alternativa correta.</Text>
-              {pergunta.alternativas.map((alternativa, j) => (
-                <View key={j} style={styles.linhaAlternativa}>
-                  <Pressable
-                    onPress={() =>
-                      alterarPergunta(indice, (p) => ({
-                        ...p,
-                        alternativas: p.alternativas.map((a, k) => ({ ...a, correta: k === j })),
-                      }))
-                    }
-                    hitSlop={8}
-                  >
-                    <View style={[styles.radio, alternativa.correta && styles.radioSelecionado]} />
-                  </Pressable>
-                  <TextInput
-                    style={[styles.input, styles.inputAlternativa]}
-                    placeholder={`Alternativa ${j + 1}`}
-                    placeholderTextColor="#777B86"
-                    value={alternativa.texto}
-                    onChangeText={(texto) =>
-                      alterarPergunta(indice, (p) => ({
-                        ...p,
-                        alternativas: p.alternativas.map((a, k) => (k === j ? { ...a, texto } : a)),
-                      }))
-                    }
-                  />
-                  {pergunta.alternativas.length > 2 && (
-                    <Pressable
-                      hitSlop={8}
-                      onPress={() =>
-                        alterarPergunta(indice, (p) => {
-                          const restantes = p.alternativas.filter((_, k) => k !== j);
-                          // Se a correta foi removida, a primeira passa a ser a correta
-                          if (!restantes.some((a) => a.correta)) restantes[0] = { ...restantes[0], correta: true };
-                          return { ...p, alternativas: restantes };
-                        })
-                      }
-                    >
-                      <Text style={styles.remover}>✕</Text>
-                    </Pressable>
-                  )}
-                </View>
-              ))}
-
+          <Text style={styles.label}>Palestra</Text>
+          <Text style={styles.dica}>O quiz usa as perguntas ativas cadastradas na palestra.</Text>
+          {palestras.length === 0 && <Text style={styles.dica}>Nenhuma palestra cadastrada.</Text>}
+          {palestras.map((palestra) => {
+            const selecionada = palestra.id === palestraId;
+            return (
               <Pressable
-                onPress={() =>
-                  alterarPergunta(indice, (p) => ({
-                    ...p,
-                    alternativas: [...p.alternativas, { texto: '', correta: false }],
-                  }))
-                }
+                key={palestra.id}
+                style={[styles.opcao, selecionada && styles.opcaoSelecionada]}
+                onPress={() => setPalestraId(palestra.id ?? null)}
               >
-                <Text style={styles.link}>+ Adicionar alternativa</Text>
+                <View style={[styles.radio, selecionada && styles.radioSelecionado]} />
+                <Text style={styles.opcaoTexto}>{palestra.nome}</Text>
               </Pressable>
-            </View>
-          ))}
+            );
+          })}
 
-          <Pressable style={styles.buttonSecundario} onPress={() => setPerguntas((atual) => [...atual, novaPergunta()])}>
-            <Text style={styles.buttonSecundarioText}>+ Adicionar pergunta</Text>
+          <Pressable style={styles.buttonSecundario} onPress={() =>
+              router.push(
+                palestraId === null
+                  ? '/cadastro-perguntas'
+                  : { pathname: '/cadastro-perguntas', params: { palestraId: String(palestraId) } }
+              )
+            }>
+            <Text style={styles.buttonSecundarioText}>+ Cadastrar perguntas</Text>
           </Pressable>
 
           <Pressable
@@ -229,9 +189,9 @@ export default function QuizzesAdmScreen() {
           {cadastrados.length === 0 && <Text style={styles.dica}>Nenhum quiz cadastrado ainda.</Text>}
           {cadastrados.map((quiz) => (
             <View key={quiz.id} style={styles.itemCadastrado}>
-              <Text style={styles.perguntaTitulo}>{quiz.titulo}</Text>
+              <Text style={styles.itemTitulo}>{quiz.titulo}</Text>
               <Text style={styles.dica}>
-                {quiz.perguntas.length} perguntas · {quiz.pontuacao} pontos
+                {quiz.palestra.nome} · {quiz.perguntas.length} perguntas · {quiz.pontuacao} pontos
               </Text>
             </View>
           ))}
@@ -249,20 +209,27 @@ const styles = StyleSheet.create({
   title: { color: '#F2F2F4', fontSize: 21, fontWeight: '400', marginBottom: 16 },
   label: { color: '#E5E5E8', fontSize: 14, fontWeight: '700', marginBottom: 7 },
   input: { height: 41, borderWidth: 1, borderColor: '#7F1837', borderRadius: 5, paddingHorizontal: 13, color: '#FFFFFF', fontSize: 14, marginBottom: 15 },
-  pergunta: { borderTopWidth: 1, borderTopColor: '#3A2530', paddingTop: 16, marginTop: 4, marginBottom: 12 },
-  linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  perguntaTitulo: { color: '#F2F2F4', fontSize: 15, fontWeight: '700' },
+  itemTitulo: { color: '#F2F2F4', fontSize: 15, fontWeight: '700' },
   dica: { color: '#A6A9B2', fontSize: 13, marginBottom: 10 },
-  linhaAlternativa: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  inputAlternativa: { flex: 1 },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#7F1837', marginBottom: 15 },
+  opcao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#3A2530',
+    borderRadius: 5,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  opcaoSelecionada: { borderColor: '#A92B50', backgroundColor: '#1C1219' },
+  opcaoTexto: { color: '#E2E2E5', fontSize: 14, flexShrink: 1 },
+  radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: '#7F1837' },
   radioSelecionado: { backgroundColor: '#A92B50', borderColor: '#A92B50' },
-  remover: { color: '#A6A9B2', fontSize: 16, marginBottom: 15 },
-  link: { color: '#A92B50', fontSize: 13 },
   button: { height: 41, borderRadius: 5, backgroundColor: '#941D3E', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   buttonDesabilitado: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
-  buttonSecundario: { height: 41, borderRadius: 5, borderWidth: 1, borderColor: '#7F1837', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  buttonSecundario: { height: 41, borderRadius: 5, borderWidth: 1, borderColor: '#7F1837', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   buttonSecundarioText: { color: '#E2E2E5', fontSize: 14, fontWeight: '700' },
   itemCadastrado: { borderTopWidth: 1, borderTopColor: '#3A2530', paddingTop: 10, marginTop: 6 },
 });

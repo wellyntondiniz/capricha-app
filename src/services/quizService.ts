@@ -5,6 +5,7 @@ export type Alternativa = {
   texto: string;
 };
 
+// Perguntas cadastradas na palestra (tela cadastro-perguntas); o gabarito nunca vem da API
 export type Pergunta = {
   id: number;
   enunciado: string;
@@ -16,12 +17,13 @@ export type Quiz = {
   titulo: string;
   descricao?: string;
   pontuacao: number;
+  palestra: { id: number; nome: string };
   perguntas: Pergunta[];
 };
 
 export type RespostaPergunta = {
   perguntaId: number;
-  alternativaId: number;
+  alternativaIds: number[];
 };
 
 export type ResultadoQuiz = {
@@ -31,15 +33,25 @@ export type ResultadoQuiz = {
   pontosObtidos: number;
 };
 
+export class QuizErro extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 const URL = `${BASE_URL}/quizzes`;
 
-async function lerErro(res: Response, padrao: string): Promise<Error> {
+async function lerErro(res: Response, padrao: string): Promise<QuizErro> {
   try {
     const corpo = await res.json();
-    return new Error(corpo?.mensagem || padrao);
+    return new QuizErro(corpo?.mensagem || padrao, res.status);
   } catch {
-    return new Error(padrao);
+    return new QuizErro(padrao, res.status);
   }
+}
+
+function autorizacao(token: string) {
+  return { Authorization: `Bearer ${token}` };
 }
 
 export async function listarQuizzes(): Promise<Quiz[]> {
@@ -48,35 +60,34 @@ export async function listarQuizzes(): Promise<Quiz[]> {
   return res.json();
 }
 
-export async function listarRespostasDoUsuario(usuarioId: number): Promise<ResultadoQuiz[]> {
-  const res = await fetch(`${URL}/respostas?usuarioId=${usuarioId}`);
+// Quizzes já respondidos pelo usuário da sessão
+export async function listarMinhasRespostas(token: string): Promise<ResultadoQuiz[]> {
+  const res = await fetch(`${URL}/respostas`, { headers: autorizacao(token) });
   if (!res.ok) throw await lerErro(res, 'Erro ao carregar suas respostas');
   return res.json();
 }
 
-// Os pontos são calculados no servidor, que também os lança no ranking
+// Os pontos são calculados no servidor, que também os lança no ranking; cada usuário responde uma vez
 export async function responderQuiz(
+  token: string,
   quizId: number,
-  usuarioId: number | undefined,
   respostas: RespostaPergunta[]
 ): Promise<ResultadoQuiz> {
   const res = await fetch(`${URL}/${quizId}/respostas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usuarioId, respostas }),
+    headers: { 'Content-Type': 'application/json', ...autorizacao(token) },
+    body: JSON.stringify({ respostas }),
   });
   if (!res.ok) throw await lerErro(res, 'Erro ao enviar respostas');
   return res.json();
 }
 
-export type NovaAlternativa = { texto: string; correta: boolean };
-export type NovaPergunta = { enunciado: string; alternativas: NovaAlternativa[] };
-export type NovoQuiz = { titulo: string; descricao: string; pontuacao: number; perguntas: NovaPergunta[] };
+export type NovoQuiz = { titulo: string; descricao: string; pontuacao: number; palestraId: number };
 
-export async function cadastrarQuiz(quiz: NovoQuiz): Promise<Quiz> {
+export async function cadastrarQuiz(token: string, quiz: NovoQuiz): Promise<Quiz> {
   const res = await fetch(URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...autorizacao(token) },
     body: JSON.stringify(quiz),
   });
   if (!res.ok) throw await lerErro(res, 'Erro ao cadastrar quiz');
