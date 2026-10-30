@@ -1,13 +1,18 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { Evento, listarEventos } from '@/services/eventoService';
 import {
+  atualizarPalestraComImagem,
+  buscarPalestra,
+  obterUrlImagemPalestra,
   PalestraApiError,
   salvarPalestraComImagem,
 } from '@/services/palestraService';
 import { erro, sucesso } from '@/utils/notify';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -47,6 +52,20 @@ const converterParaISO = (dataBR: string) => {
   return `${ano}-${mes}-${dia}`;
 };
 
+// "2026-10-30T14:30:00" -> "30/10/2026"
+const isoParaData = (iso?: string | null): string => {
+  if (!iso) return '';
+  const [ano, mes, dia] = iso.split('T')[0].split('-');
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : '';
+};
+
+// "2026-10-30T14:30:00" -> "14:30"
+const isoParaHora = (iso?: string | null): string => {
+  if (!iso) return '';
+  const hora = iso.split('T')[1];
+  return hora ? hora.slice(0, 5) : '';
+};
+
 const hojeISO = () => {
   const agora = new Date();
   const mes = String(agora.getMonth() + 1).padStart(2, '0');
@@ -55,6 +74,14 @@ const hojeISO = () => {
 };
 
 export default function CadastroPalestra() {
+  const { usuario, carregando: carregandoSessao } = useAuth();
+  const ehAdmin = ['ADMIN', 'ADMINISTRADOR'].includes(usuario?.perfil?.toUpperCase() ?? '');
+
+  // Com ?id=... a tela edita a palestra; sem id, cadastra uma nova.
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const palestraId = id ? Number(id) : null;
+  const editando = palestraId !== null && !Number.isNaN(palestraId);
+
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [palestrante, setPalestrante] = useState('');
@@ -69,12 +96,77 @@ export default function CadastroPalestra() {
 
   const [imagem, setImagem] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [carregandoImagem, setCarregandoImagem] = useState(false);
+  const [imagemAtual, setImagemAtual] = useState<string | null>(null);
+  const [removerImagemAtual, setRemoverImagemAtual] = useState(false);
+
+  const [carregandoPalestra, setCarregandoPalestra] = useState(editando);
+  const [salvando, setSalvando] = useState(false);
+  // Agenda original da palestra em edição: só revalidamos "já passou" e o período do evento se ela mudar.
+  const [original, setOriginal] = useState<{
+    data: string;
+    horario: string;
+    dataTermino: string;
+    horarioTermino: string;
+    eventoId?: number;
+  } | null>(null);
 
   useEffect(() => {
-    listarEventos()
-      .then(setEventos)
-      .catch(() => setEventos([]));
-  }, []);
+    let ativo = true;
+
+    async function carregar() {
+      let listaEventos: Evento[] = [];
+      try {
+        listaEventos = await listarEventos();
+      } catch {
+        listaEventos = [];
+      }
+      if (!ativo) return;
+      setEventos(listaEventos);
+
+      if (!editando || palestraId === null) return;
+
+      try {
+        const palestra = await buscarPalestra(palestraId);
+        if (!ativo) return;
+
+        const dataIni = palestra.data ?? '';
+        const horaIni = palestra.horario ?? '';
+        const dataFim = isoParaData(palestra.dataTermino);
+        const horaFim = isoParaHora(palestra.dataTermino);
+
+        setNome(palestra.nome ?? '');
+        setDescricao(palestra.descricao ?? '');
+        setPalestrante(palestra.palestrante ?? '');
+        setData(dataIni);
+        setHorario(horaIni);
+        setDataTermino(dataFim);
+        setHorarioTermino(horaFim);
+        setImagemAtual(palestra.imagem ?? null);
+        setOriginal({
+          data: dataIni,
+          horario: horaIni,
+          dataTermino: dataFim,
+          horarioTermino: horaFim,
+          eventoId: palestra.evento?.id,
+        });
+
+        // Se o evento não vier na lista (ex.: desativado), usa o que a própria palestra traz.
+        const doEvento = listaEventos.find((e) => e.id === palestra.evento?.id) ?? palestra.evento ?? null;
+        setEventoSelecionado(doEvento);
+      } catch (error) {
+        const erro_ = error as PalestraApiError;
+        erro('Erro', erro_.message || 'Não foi possível carregar a palestra.');
+        router.replace('/palestras');
+      } finally {
+        if (ativo) setCarregandoPalestra(false);
+      }
+    }
+
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, [editando, palestraId]);
 
   const selecionarImagem = async () => {
     try {
@@ -111,6 +203,11 @@ export default function CadastroPalestra() {
 
   const removerImagem = () => {
     setImagem(null);
+  };
+
+  const removerImagemSalva = () => {
+    setImagemAtual(null);
+    setRemoverImagemAtual(true);
   };
 
   const validarData = (data: string) => {
@@ -153,7 +250,9 @@ export default function CadastroPalestra() {
     );
   };
 
-  const cadastrarPalestra = async () => {
+  const salvarPalestra = async () => {
+    if (salvando) return;
+
     if (!nome.trim()) {
       erro('Campo obrigatório', 'É necessário informar o nome da palestra.');
       return;
@@ -190,6 +289,16 @@ export default function CadastroPalestra() {
     }
 
     const dataHoraPalestra = paraDataHora(data, horario);
+
+    // Na edição, o que não mudou não é revalidado (ex.: corrigir a descrição de uma palestra que já passou).
+    const inicioMudou = !editando || !original || original.data !== data.trim() || original.horario !== horario.trim();
+    const agendaMudou =
+      inicioMudou ||
+      !original ||
+      original.dataTermino !== dataTermino.trim() ||
+      original.horarioTermino !== horarioTermino.trim() ||
+      original.eventoId !== eventoSelecionado.id;
+
     let terminoISO: string | undefined;
     if (dataTermino.trim() || horarioTermino.trim()) {
       if (!validarData(dataTermino) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horarioTermino)) {
@@ -201,14 +310,14 @@ export default function CadastroPalestra() {
         erro('Término inválido', 'O término deve ser posterior ao início da palestra.');
         return;
       }
-      if (eventoSelecionado.dataTermino && fim > new Date(eventoSelecionado.dataTermino)) {
+      if (agendaMudou && eventoSelecionado.dataTermino && fim > new Date(eventoSelecionado.dataTermino)) {
         erro('Fora do período do evento', 'O término da palestra não pode ultrapassar o término do evento.');
         return;
       }
       terminoISO = `${converterParaISO(dataTermino)}T${horarioTermino}:00`;
     }
 
-    if (dataHoraPalestra < agoraSemSegundos()) {
+    if (inicioMudou && dataHoraPalestra < agoraSemSegundos()) {
       erro(
         'Horário inválido',
         'A palestra não pode ser cadastrada em uma data e horário que já passaram.'
@@ -216,7 +325,7 @@ export default function CadastroPalestra() {
       return;
     }
 
-    if (eventoSelecionado.dataInicio) {
+    if (agendaMudou && eventoSelecionado.dataInicio) {
       const inicioEvento = new Date(eventoSelecionado.dataInicio);
 
       if (dataHoraPalestra < inicioEvento) {
@@ -239,21 +348,25 @@ export default function CadastroPalestra() {
       }
     }
 
-    try {
-      await salvarPalestraComImagem(
-        {
-          nome: nome.trim(),
-          descricao: descricao.trim(),
-          palestrante: palestrante.trim(),
-          data: data.trim(),
-          horario: horario.trim(),
-          dataTermino: terminoISO,
-          evento: eventoSelecionado.id!,
-        },
-        imagem
-      );
+    const dados = {
+      nome: nome.trim(),
+      descricao: descricao.trim(),
+      palestrante: palestrante.trim(),
+      data: data.trim(),
+      horario: horario.trim(),
+      dataTermino: terminoISO,
+      evento: eventoSelecionado.id!,
+    };
 
-      sucesso('Sucesso', 'Palestra cadastrada com sucesso!');
+    setSalvando(true);
+    try {
+      if (editando && palestraId !== null) {
+        await atualizarPalestraComImagem(palestraId, dados, imagem, removerImagemAtual, usuario?.token);
+        sucesso('Sucesso', 'Palestra atualizada com sucesso!');
+      } else {
+        await salvarPalestraComImagem(dados, imagem, usuario?.token);
+        sucesso('Sucesso', 'Palestra cadastrada com sucesso!');
+      }
 
       setNome('');
       setDescricao('');
@@ -276,8 +389,29 @@ export default function CadastroPalestra() {
       } else {
         erro('Erro', erro_.message || 'Não foi possível salvar a palestra.');
       }
+    } finally {
+      setSalvando(false);
     }
   };
+
+  if (carregandoSessao || carregandoPalestra) {
+    return (
+      <View style={[styles.container, styles.centralizado]}>
+        <ActivityIndicator size="large" color="#A71948" />
+      </View>
+    );
+  }
+
+  if (!ehAdmin) {
+    return (
+      <View style={[styles.container, styles.centralizado]}>
+        <Text style={styles.avisoText}>Somente administradores podem cadastrar ou editar palestras.</Text>
+        <Pressable onPress={() => router.replace('/palestras')}>
+          <Text style={styles.link}>Voltar para a lista de palestras</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -285,7 +419,7 @@ export default function CadastroPalestra() {
         <Pressable style={styles.voltarLista} onPress={() => router.replace('/palestras')}>
           <Text style={styles.voltarListaTexto}>‹ Voltar para a lista de palestras</Text>
         </Pressable>
-        <Text style={styles.title}>Cadastro de palestra</Text>
+        <Text style={styles.title}>{editando ? 'Editar palestra' : 'Cadastro de palestra'}</Text>
 
         <Text style={styles.label}>Nome da palestra</Text>
         <TextInput
@@ -382,6 +516,22 @@ export default function CadastroPalestra() {
               <Text style={styles.removerImagemText}>Remover imagem</Text>
             </Pressable>
           </View>
+        ) : imagemAtual ? (
+          <View style={styles.imagemContainer}>
+            <Image
+              source={{ uri: obterUrlImagemPalestra(imagemAtual) }}
+              style={styles.imagemPreview}
+              resizeMode="cover"
+            />
+            <Pressable style={styles.selecionarImagem} onPress={selecionarImagem} disabled={carregandoImagem}>
+              <Text style={styles.selecionarImagemText}>
+                {carregandoImagem ? 'Selecionando...' : 'Trocar imagem'}
+              </Text>
+            </Pressable>
+            <Pressable style={styles.removerImagem} onPress={removerImagemSalva}>
+              <Text style={styles.removerImagemText}>Remover imagem</Text>
+            </Pressable>
+          </View>
         ) : (
           <Pressable
             style={styles.selecionarImagem}
@@ -430,10 +580,15 @@ export default function CadastroPalestra() {
         )}
 
         <Pressable
-          style={styles.button}
-          onPress={cadastrarPalestra}
+          style={[styles.button, salvando && { opacity: 0.6 }]}
+          onPress={salvarPalestra}
+          disabled={salvando}
         >
-          <Text style={styles.buttonText}>Cadastrar</Text>
+          {salvando ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>{editando ? 'Salvar alterações' : 'Cadastrar'}</Text>
+          )}
         </Pressable>
       </View>
 
@@ -489,6 +644,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0D0E13',
+  },
+
+  centralizado: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
   },
 
   card: {
