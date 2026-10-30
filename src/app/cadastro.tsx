@@ -87,7 +87,7 @@ export default function RegisterScreen() {
 
     setEnviando(true);
     try {
-      await salvarUsuario({
+      const cadastrado = await salvarUsuario({
         nome: valores.nome.trim(),
         email: valores.email.trim(),
         senha: valores.senha,
@@ -95,7 +95,12 @@ export default function RegisterScreen() {
       });
 
       formulario.limpar();
-      setMensagem({ texto: 'Usuário cadastrado com sucesso!', tipo: 'sucesso' });
+      // O cadastro já foi concluído; a mensagem informa se o e-mail de confirmação foi enviado ou falhou.
+      const emailOk = cadastrado.emailConfirmacaoEnviado || cadastrado.emailConfirmacaoSimulado;
+      setMensagem({
+        texto: cadastrado.mensagemEmail || 'Usuário cadastrado com sucesso!',
+        tipo: emailOk ? 'sucesso' : 'erro',
+      });
     } catch (error) {
       if (error instanceof ErroApi && formulario.definirErros(error.campos)) {
         setMensagem({ texto: MENSAGEM_CORRIJA_CAMPOS, tipo: 'erro' });
