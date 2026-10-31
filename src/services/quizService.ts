@@ -103,3 +103,16 @@ export async function cadastrarQuiz(token: string, quiz: NovoQuiz): Promise<Quiz
   if (!res.ok) throw await lerErro(res, 'Erro ao cadastrar quiz');
   return res.json();
 }
+
+export type EdicaoQuiz = { titulo: string; descricao: string; pontuacao: number };
+
+// Edita título, descrição e pontuação; as perguntas são as da palestra (cadastro de perguntas)
+export async function atualizarQuiz(token: string, id: number, quiz: EdicaoQuiz): Promise<Quiz> {
+  const res = await fetch(`${URL}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...autorizacao(token) },
+    body: JSON.stringify(quiz),
+  });
+  if (!res.ok) throw await lerErro(res, 'Erro ao atualizar quiz');
+  return res.json();
+}

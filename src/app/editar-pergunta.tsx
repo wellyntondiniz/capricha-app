@@ -1,4 +1,3 @@
-
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -19,6 +18,12 @@ import {
 } from '@/services/perguntaService';
 
 import { erro, sucesso } from '@/utils/notify';
+
+// Limites alinhados com a API
+const TAMANHO_MAXIMO = 255;
+const TAMANHO_MINIMO_ENUNCIADO = 5;
+const MINIMO_ALTERNATIVAS = 2;
+const MAXIMO_ALTERNATIVAS = 6;
 
 type AlternativaFormulario = {
   id?: number;
@@ -105,6 +110,23 @@ export default function EditarPergunta() {
     );
   }
 
+  function adicionarAlternativa() {
+    setAlternativas((atuais) =>
+      atuais.length >= MAXIMO_ALTERNATIVAS ? atuais : [...atuais, { texto: '', correta: false }]
+    );
+  }
+
+  function removerAlternativa(index: number) {
+    setAlternativas((atuais) =>
+      atuais.length <= MINIMO_ALTERNATIVAS ? atuais : atuais.filter((_, i) => i !== index)
+    );
+  }
+
+  function voltar() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/lista-perguntas');
+  }
+
   async function salvarAlteracoes() {
     if (
       perguntaId === null ||
@@ -119,8 +141,24 @@ export default function EditarPergunta() {
       return;
     }
 
+    if (enunciado.trim().length < TAMANHO_MINIMO_ENUNCIADO) {
+      erro('Atenção', `O enunciado precisa ter pelo menos ${TAMANHO_MINIMO_ENUNCIADO} caracteres.`);
+      return;
+    }
+
+    if (alternativas.length < MINIMO_ALTERNATIVAS) {
+      erro('Atenção', `A pergunta precisa de pelo menos ${MINIMO_ALTERNATIVAS} alternativas.`);
+      return;
+    }
+
     if (alternativas.some((a) => !a.texto.trim())) {
-      erro('Campo obrigatório', 'Preencha as quatro alternativas.');
+      erro('Campo obrigatório', 'Preencha o texto de todas as alternativas.');
+      return;
+    }
+
+    const textos = alternativas.map((a) => a.texto.trim().toLowerCase());
+    if (new Set(textos).size !== textos.length) {
+      erro('Atenção', 'As alternativas não podem se repetir.');
       return;
     }
 
@@ -129,6 +167,11 @@ export default function EditarPergunta() {
         'Campo obrigatório',
         'Selecione pelo menos uma alternativa correta.'
       );
+      return;
+    }
+
+    if (alternativas.every((a) => a.correta)) {
+      erro('Atenção', 'Pelo menos uma alternativa precisa ser incorreta.');
       return;
     }
 
@@ -155,11 +198,13 @@ export default function EditarPergunta() {
         'As alterações foram salvas com sucesso.'
       );
 
-      router.replace('/lista-perguntas');
-    } catch {
+      voltar();
+    } catch (e) {
       erro(
         'Erro',
-        'Não foi possível atualizar a pergunta. Verifique a API.'
+        e instanceof Error
+          ? e.message
+          : 'Não foi possível atualizar a pergunta. Verifique a API.'
       );
     } finally {
       setSalvando(false);
@@ -210,6 +255,7 @@ export default function EditarPergunta() {
               value={enunciado}
               onChangeText={setEnunciado}
               multiline
+              maxLength={TAMANHO_MAXIMO}
               editable={!salvando}
             />
           </View>
@@ -227,6 +273,7 @@ export default function EditarPergunta() {
                   onChangeText={(texto) =>
                     atualizarTexto(texto, index)
                   }
+                  maxLength={TAMANHO_MAXIMO}
                   editable={!salvando}
                 />
 
@@ -249,11 +296,38 @@ export default function EditarPergunta() {
 
                   <Text style={styles.textoCorreta}>Correta</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.remover,
+                    alternativas.length <= MINIMO_ALTERNATIVAS &&
+                      styles.removerDesabilitado,
+                  ]}
+                  onPress={() => removerAlternativa(index)}
+                  disabled={
+                    salvando || alternativas.length <= MINIMO_ALTERNATIVAS
+                  }
+                  accessibilityLabel={`Remover alternativa ${index + 1}`}
+                >
+                  <Text style={styles.removerTexto}>✕</Text>
+                </TouchableOpacity>
               </View>
             ))}
 
+            {alternativas.length < MAXIMO_ALTERNATIVAS && (
+              <TouchableOpacity
+                style={styles.botaoAdicionar}
+                onPress={adicionarAlternativa}
+                disabled={salvando}
+              >
+                <Text style={styles.textoAdicionar}>+ Adicionar alternativa</Text>
+              </TouchableOpacity>
+            )}
+
             <Text style={styles.hint}>
-              Marque uma ou mais alternativas como corretas.
+              Marque uma ou mais alternativas como corretas (pelo menos uma deve
+              ficar incorreta). De {MINIMO_ALTERNATIVAS} a {MAXIMO_ALTERNATIVAS}{' '}
+              alternativas.
             </Text>
           </View>
 
@@ -272,7 +346,7 @@ export default function EditarPergunta() {
 
           <TouchableOpacity
             style={styles.botaoVoltar}
-            onPress={() => router.back()}
+            onPress={voltar}
             disabled={salvando}
           >
             <Text style={styles.textoVoltar}>Cancelar</Text>
@@ -417,6 +491,37 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 13,
     color: '#8B949E',
+  },
+  remover: {
+    width: 30,
+    height: 30,
+    marginLeft: 8,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#872332',
+  },
+  removerDesabilitado: {
+    opacity: 0.35,
+  },
+  removerTexto: {
+    color: '#FCE7EB',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  botaoAdicionar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 38,
+    marginTop: 2,
+    borderWidth: 1,
+    borderColor: '#7B1B38',
+    borderRadius: 6,
+  },
+  textoAdicionar: {
+    color: '#E6EDF3',
+    fontSize: 13,
+    fontWeight: '600',
   },
   hint: {
     marginTop: 5,

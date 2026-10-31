@@ -13,6 +13,16 @@ export type Pergunta = {
 
 const URL = `${BASE_URL}/pergunta`;
 
+// A API devolve { mensagem } nos erros de validação; mostra o motivo em vez de um texto genérico
+async function lerMensagem(res: Response, padrao: string): Promise<string> {
+  try {
+    const corpo = await res.json();
+    return corpo?.mensagem || padrao;
+  } catch {
+    return padrao;
+  }
+}
+
   export async function listarPerguntas(): Promise<Pergunta[]> {
     const res = await fetch(URL);
 
@@ -32,7 +42,7 @@ export async function salvarPergunta(
     body: JSON.stringify(pergunta),
   });
 
-  if (!res.ok) throw new Error('Erro ao salvar pergunta');
+  if (!res.ok) throw new Error(await lerMensagem(res, 'Erro ao salvar pergunta'));
 
   return res.json();
 }
@@ -49,7 +59,7 @@ export async function atualizarPergunta(
     body: JSON.stringify(pergunta),
   });
 
-  if (!res.ok) throw new Error('Erro ao atualizar pergunta');
+  if (!res.ok) throw new Error(await lerMensagem(res, 'Erro ao atualizar pergunta'));
 
   return res.json();
 }
@@ -61,5 +71,5 @@ export async function deletarPerguntaById(
     method: 'PUT'
   });
 
-  if (!res.ok) throw new Error('Erro ao deletar pergunta');
+  if (!res.ok) throw new Error(await lerMensagem(res, 'Erro ao deletar pergunta'));
 }
