@@ -97,7 +97,7 @@ test('aceitar e recusar chamam a solicitação certa', async () => {
   assert.equal(chamadas.at(-1).url, 'http://api.test:8080/conexoes/solicitacoes/6/recusar');
 });
 
-const { conexoesProgress, META_CONEXOES } = load('src/features/conexoes/conexoes-progress.ts');
+const { conexoesProgress, missaoConexoes, META_CONEXOES } = load('src/features/conexoes/conexoes-progress.ts');
 const evento = { id: 7, nome: 'Evento' };
 const conexao = (id, eventoId) => ({ id, nome: 'X', foto: null, eventoId, eventoNome: 'E', conectadaEm: null, xp: 150 });
 const recebida = (id, eventoId) => ({ id, nome: 'Y', foto: null, eventoId, eventoNome: 'E', criadaEm: '' });
@@ -111,19 +111,32 @@ test('card da Home: carregando, erro e resposta ausente não mostram número inv
 test('card da Home: sem check-in pede o check-in; com dados mostra só as conexões do evento ativo', () => {
   const vazio = { recebidas: [], enviadas: [], conexoes: [] };
   assert.deepEqual(conexoesProgress('pronto', undefined, vazio),
-    { tipo: 'progresso', atual: 0, total: META_CONEXOES, texto: 'Faça check-in para se conectar' });
+    { tipo: 'progresso', atual: 0, total: META_CONEXOES, texto: 'Faça check-in para se conectar · 20 conexões concluem a missão' });
   assert.deepEqual(conexoesProgress('pronto', evento, vazio),
-    { tipo: 'progresso', atual: 0, total: 3, texto: '0 de 3 conexões' });
+    { tipo: 'progresso', atual: 0, total: 20, texto: '0 de 20 conexões' });
   const resumo = { recebidas: [], enviadas: [], conexoes: [conexao(1, 7), conexao(2, 99), conexao(3, 99)] };
   assert.deepEqual(conexoesProgress('pronto', evento, resumo),
-    { tipo: 'progresso', atual: 1, total: 3, texto: '1 de 3 conexões' });
+    { tipo: 'progresso', atual: 1, total: 20, texto: '1 de 20 conexões' });
 });
 
 test('card da Home: solicitações recebidas aparecem como pendentes e a meta conclui a missão', () => {
   const um = { recebidas: [recebida(1, 7), recebida(2, 99)], enviadas: [], conexoes: [conexao(1, 7)] };
-  assert.equal(conexoesProgress('pronto', evento, um).texto, '1 de 3 conexões · 1 pendente');
+  assert.equal(conexoesProgress('pronto', evento, um).texto, '1 de 20 conexões · 1 pendente');
   const dois = { recebidas: [recebida(1, 7), recebida(2, 7)], enviadas: [], conexoes: [] };
-  assert.equal(conexoesProgress('pronto', evento, dois).texto, '0 de 3 conexões · 2 pendentes');
-  const meta = { recebidas: [], enviadas: [], conexoes: [conexao(1, 7), conexao(2, 7), conexao(3, 7), conexao(4, 7)] };
-  assert.deepEqual(conexoesProgress('pronto', evento, meta), { tipo: 'concluido', texto: '4 conexões' });
+  assert.equal(conexoesProgress('pronto', evento, dois).texto, '0 de 20 conexões · 2 pendentes');
+  const quase = { recebidas: [], enviadas: [], conexoes: Array.from({ length: 19 }, (_, i) => conexao(i + 1, 7)) };
+  assert.deepEqual(conexoesProgress('pronto', evento, quase), { tipo: 'progresso', atual: 19, total: 20, texto: '19 de 20 conexões' });
+  const meta = { recebidas: [], enviadas: [], conexoes: Array.from({ length: 20 }, (_, i) => conexao(i + 1, 7)) };
+  assert.deepEqual(conexoesProgress('pronto', evento, meta), { tipo: 'concluido', texto: '20 conexões · missão concluída' });
+  const extra = { recebidas: [], enviadas: [], conexoes: Array.from({ length: 23 }, (_, i) => conexao(i + 1, 7)) };
+  assert.deepEqual(conexoesProgress('pronto', evento, extra), { tipo: 'concluido', texto: '23 conexões · missão concluída' });
+});
+
+test('missão: meta de 20 completa a missão, mas conexões extras continuam contando', () => {
+  assert.equal(META_CONEXOES, 20);
+  const feitas = (n) => ({ recebidas: [], enviadas: [], conexoes: Array.from({ length: n }, (_, i) => conexao(i + 1, 7)) });
+  assert.deepEqual(missaoConexoes(evento, feitas(5)), { feitas: 5, meta: 20, faltam: 15, extras: 0, concluida: false, xpGanho: 750 });
+  assert.deepEqual(missaoConexoes(evento, feitas(20)), { feitas: 20, meta: 20, faltam: 0, extras: 0, concluida: true, xpGanho: 3000 });
+  assert.deepEqual(missaoConexoes(evento, feitas(22)), { feitas: 22, meta: 20, faltam: 0, extras: 2, concluida: true, xpGanho: 3300 });
+  assert.equal(missaoConexoes(undefined, feitas(5)).feitas, 0);
 });

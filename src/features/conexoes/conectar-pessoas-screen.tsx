@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,6 +19,7 @@ import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { QrScanner } from '@/features/check-in/qr-scanner';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
+import { META_CONEXOES, missaoConexoes } from './conexoes-progress';
 import { httpConexaoService } from './http-conexao-service';
 import type { MeuQrConexao, PerfilConexao, ResumoConexoes } from './types';
 
@@ -90,7 +91,13 @@ export default function ConectarPessoasScreen() {
       // Na primeira carga, se há solicitações esperando resposta, abre direto nelas.
       // Depois disso não troca de aba sozinho (a pessoa pode estar mostrando o QR).
       if (!anteriorRef.current && dados.recebidas.length) setAba('solicitacoes');
-      const novo = novidades(anteriorRef.current, dados);
+      const eventoAtivo = eventos.find((e) => e.hasCheckedIn && e.canCheckIn);
+      const cruzouMeta = !!anteriorRef.current
+        && !missaoConexoes(eventoAtivo, anteriorRef.current).concluida
+        && missaoConexoes(eventoAtivo, dados).concluida;
+      const novo: Aviso = cruzouMeta
+        ? { tom: 'sucesso', texto: `Conquista desbloqueada! Você completou as ${META_CONEXOES} conexões. Continue se conectando: cada nova conexão ainda rende +150 XP.` }
+        : novidades(anteriorRef.current, dados);
       if (novo) setAviso(novo);
       anteriorRef.current = dados;
       setResumo(dados);
@@ -185,6 +192,8 @@ export default function ConectarPessoasScreen() {
 
   const pendentes = resumo.recebidas.length;
   const perfil = alvo?.perfil;
+  const missao = missaoConexoes(evento ?? undefined, estado === 'pronto' ? resumo : null);
+  const percentual = Math.min(missao.feitas / missao.meta, 1) * 100;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -237,6 +246,44 @@ export default function ConectarPessoasScreen() {
           </View>
         )}
 
+        {estado === 'pronto' && evento && (
+          <View style={[styles.card, missao.concluida && styles.cardConcluido]}>
+            {missao.concluida && (
+              <View style={styles.conquista}>
+                <Ionicons name="trophy" size={14} color="#34D399" />
+                <Text style={styles.conquistaTexto}>CONQUISTA DESBLOQUEADA</Text>
+              </View>
+            )}
+            <View style={styles.missaoTopo}>
+              <Text style={styles.cardTitulo}>
+                {missao.concluida ? `${missao.meta} conexões concluídas` : `Missão: ${missao.meta} conexões`}
+              </Text>
+              <Text style={[styles.missaoContagem, missao.concluida && styles.missaoContagemConcluida]}>
+                {missao.concluida ? `${missao.feitas} conexões` : `${missao.feitas} de ${missao.meta}`}
+              </Text>
+            </View>
+            <View style={styles.barra} accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: missao.meta, now: Math.min(missao.feitas, missao.meta) }}>
+              <View style={[styles.barraPreenchida, missao.concluida && styles.barraConcluida, { width: `${percentual}%` }]} />
+            </View>
+            {missao.concluida && (
+              <View style={styles.continua}>
+                <Ionicons name="flash" size={16} color="#34D399" />
+                <Text style={styles.continuaTexto}>
+                  Você pode continuar se conectando! Cada nova conexão confirmada rende +150 XP
+                  {missao.extras ? ` (${missao.extras} ${missao.extras === 1 ? 'extra' : 'extras'} até agora)` : ''}.
+                </Text>
+              </View>
+            )}
+            <Text style={styles.meta}>
+              {missao.concluida
+                ? 'Não há limite: quanto mais conexões, mais pontos no ranking.'
+                : `Faltam ${missao.faltam} ${missao.faltam === 1 ? 'conexão' : 'conexões'} para completar a missão. Você pode conectar com mais gente além disso: cada conexão confirmada rende +150 XP, e quanto mais conexões, mais pontos.`}
+            </Text>
+            {missao.xpGanho > 0 && <Text style={styles.xpResumo}>+{missao.xpGanho} XP ganhos com conexões neste evento</Text>}
+          </View>
+        )}
+
         {aba === 'qr' && (
           <View style={[styles.card, styles.centro]}>
             <Text style={styles.cardTitulo}>Seu QR Code</Text>
@@ -281,7 +328,7 @@ export default function ConectarPessoasScreen() {
 
         {aba === 'conexoes' && (
           <>
-            {!resumo.conexoes.length && <Text style={styles.vazio}>Você ainda não tem conexões. Escaneie o QR Code de outro participante.</Text>}
+            {!resumo.conexoes.length && <Text style={styles.vazio}>Você ainda não tem conexões. Escaneie o QR Code de outro participante: são 20 conexões para completar a missão, e pode conectar com mais para pontuar mais.</Text>}
             {resumo.conexoes.map((c) => (
               <View key={c.id} style={styles.card}>
                 <LinhaPessoa nome={c.nome} foto={c.foto}
@@ -399,6 +446,18 @@ const styles = StyleSheet.create({
   botaoPrimarioTexto: { color: '#fff', fontWeight: '800', fontSize: 14 },
   botaoSecundario: { minHeight: 46, borderRadius: 9, borderWidth: 1, borderColor: Cores.vinhoClaro, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   botaoSecundarioTexto: { color: '#E8A5B7', fontWeight: '700', fontSize: 14 },
+  cardConcluido: { borderColor: 'rgba(52, 211, 153, 0.45)' },
+  missaoTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  conquista: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginBottom: 10, backgroundColor: 'rgba(16, 185, 129, 0.14)', borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.35)' },
+  conquistaTexto: { color: '#34D399', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  missaoContagemConcluida: { color: '#34D399' },
+  continua: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 12, borderRadius: 10, backgroundColor: 'rgba(16, 185, 129, 0.10)', borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.30)' },
+  continuaTexto: { flex: 1, color: '#EDF0F2', fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  missaoContagem: { color: Cores.destaque, fontSize: 14, fontWeight: '800' },
+  barra: { height: 8, borderRadius: 4, backgroundColor: Cores.superficieAlta, overflow: 'hidden', marginTop: 12 },
+  barraPreenchida: { height: '100%', borderRadius: 4, backgroundColor: Cores.destaque },
+  barraConcluida: { backgroundColor: '#34D399' },
+  xpResumo: { color: '#34D399', fontSize: 12, fontWeight: '800', marginTop: 10 },
   disabled: { opacity: 0.55 },
   qrImage: { width: '100%', maxWidth: 280, aspectRatio: 1, marginTop: 18, backgroundColor: '#fff' },
   aviso: { borderRadius: 10, padding: 13, marginBottom: 14, borderWidth: 1 },
