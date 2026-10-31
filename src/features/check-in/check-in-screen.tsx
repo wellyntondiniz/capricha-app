@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { Redirect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/contexts/AuthContext';
 import { Cores } from '@/constants/cores';
+import { useAuth } from '@/contexts/AuthContext';
 import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { QrScanner } from '@/features/check-in/qr-scanner';
-import { CheckInError, CheckInEvent, CheckInQrImage, CheckInType, CheckInContext } from '@/features/check-in/types';
+import { CheckInContext, CheckInError, CheckInEvent, CheckInQrImage, CheckInType } from '@/features/check-in/types';
 
 type Notice = { tone: 'success' | 'error'; text: string } | null;
 
@@ -153,7 +153,7 @@ export default function CheckInScreen({ initialType = 'EVENT_CHECKIN', lectureId
       const updated = { ...selected, hasCheckedIn: true, checkedInAt: record.checkedInAt };
       setEvents((current) => current.map((event) => event.id === updated.id ? updated : event));
       setSelected(updated);
-      setNotice({ tone: 'success', text: `Check-in realizado com sucesso às ${formatTime(record.checkedInAt)}.` });
+      setNotice({ tone: 'success', text: `Check-in realizado com sucesso às ${formatTime(record.checkedInAt)}. +150 XP` });
     } catch (error) {
       if (tokenRef.current !== token) return;
       if (error instanceof CheckInError && error.code === 'ALREADY_CHECKED_IN') {

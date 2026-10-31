@@ -67,22 +67,22 @@ export default function CadastroPerguntas() {
 
     const cadastrarPergunta = async () => {
         if (!palestraSelecionada || palestraSelecionada.id === undefined) {
-            erro('Atenção', 'Selecione uma palestra válida.');
+            erro('Campo obrigatório', 'Selecione uma palestra válida.');
             return;
         }
         
         if (!pergunta.trim()) {
-            erro('Atenção', 'Digite o enunciado da pergunta.');
+            erro('Campo obrigatório', 'Digite o enunciado da pergunta.');
             return;
         }
 
         if (alternativas.some((alternativa) => !alternativa.trim())) {
-            erro('Atenção', 'Preencha as quatro alternativas.');
+            erro('Campo obrigatório', 'Preencha as quatro alternativas.');
             return;
         }
 
         if (corretas.length === 0) {
-            erro('Atenção', 'Selecione pelo menos uma alternativa correta.');
+            erro('Campo obrigatório', 'Selecione pelo menos uma alternativa correta.');
             return;
         }
 

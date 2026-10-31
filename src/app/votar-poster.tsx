@@ -220,7 +220,7 @@ export default function VotarPosterScreen() {
       const registro = await httpVotacaoService.votar(escolhido.id, token);
       const restantes = registro.votesRemaining;
       sucesso(
-        'Voto registrado',
+        'Voto registrado +50 XP',
         restantes > 0
           ? `Você votou em “${escolhido.titulo}”. Ainda tem ${restantes} ${restantes === 1 ? 'voto' : 'votos'} neste evento.`
           : `Você votou em “${escolhido.titulo}”. Seus votos neste evento acabaram.`

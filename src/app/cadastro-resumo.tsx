@@ -3,15 +3,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -166,16 +166,16 @@ export default function CadastroResumoScreen() {
     try {
       if (editando) {
         await atualizarResumo(resumoId!, dados, { banner: novoBanner, removerBanner });
-        sucesso('Alterações salvas');
+        sucesso('Sucesso', 'Alterações salvas');
       } else {
         await cadastrarResumo(dados, novoBanner);
-        sucesso('Resumo cadastrado');
+        sucesso('Sucesso', 'Resumo cadastrado');
       }
       voltar();
     } catch (e) {
       const mensagem = e instanceof Error ? e.message : 'Não foi possível salvar o resumo.';
       setErroGeral(mensagem);
-      notificarErro('Não foi possível salvar', mensagem);
+      notificarErro('Erro', mensagem);
     } finally {
       setEnviando(false);
     }
