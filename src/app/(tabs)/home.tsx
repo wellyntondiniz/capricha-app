@@ -20,15 +20,15 @@ import { checkInProgress } from '@/features/check-in/check-in-progress';
 import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
 import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
-import { escolherEventoAtivo } from '@/features/home/evento-ativo';
-import { quizProgress, quizXpTexto } from '@/features/quiz/quiz-progress';
 import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
 import type { ResumoConexoes } from '@/features/conexoes/types';
+import { escolherEventoAtivo } from '@/features/home/evento-ativo';
+import { quizProgress, quizXpTexto } from '@/features/quiz/quiz-progress';
 import { httpVotacaoService, type VotacaoSituacao } from '@/features/votacao/http-votacao-service';
 import { consultarAvaliacao } from '@/services/avaliacaoAplicativoService';
 import { metricasUsuario } from '@/services/metricas-usuario';
-import { listarQuizzes, type Quiz } from '@/services/quizService';
 import { listarPorEvento } from '@/services/participacaoService';
+import { listarQuizzes, type Quiz } from '@/services/quizService';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
@@ -161,39 +161,171 @@ export default function HomeScreen() {
   const aguardando: StatusMissao = { tipo: 'progresso', atual: 0, total: 0,
     texto: estadoCheckIn === 'erro' ? 'Não foi possível consultar a presença' : 'Consultando presença...' };
   const missoes = ATALHOS_PARTICIPANTE.map(item => {
-    if (item.id === 'check-in-evento') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.eventStatus : aguardando };
-    if (item.id === 'check-in-palestras') return { ...item, status: estadoCheckIn === 'pronto' ? progresso.lectureStatus : aguardando };
-    if (item.id === 'votar-poster' && situacaoVoto) {
-      const texto = `${situacaoVoto.votesUsed} de ${situacaoVoto.votesLimit} votos`;
-      const status: StatusMissao = situacaoVoto.votesRemaining === 0
+
+  const fezCheckInEvento =
+    estadoCheckIn === 'pronto' &&
+    progresso.eventStatus.tipo === 'concluido';
+
+  const concluidas =
+  [
+    progresso.eventStatus,
+    progresso.lectureStatus,
+    quizProgress(estadoQuiz, quizzes, eventoCheckIn?.id),
+
+    situacaoVoto?.votesRemaining === 0
+      ? ({ tipo: 'concluido', texto: 'Votos concluídos' } as StatusMissao)
+      : null,
+
+    avaliacaoEnviada
+      ? ({ tipo: 'concluido', texto: 'Avaliação enviada' } as StatusMissao)
+      : null,
+  ]
+    .filter((status): status is StatusMissao => status !== null)
+    .filter(status => status.tipo === 'concluido')
+    .length;
+
+  // Se ainda não fez check-in, bloqueia todas as outras missões
+  if (item.id !== 'check-in-evento' && !fezCheckInEvento) {
+    return {
+      ...item,
+      status: {
+        tipo: 'bloqueado' as const,
+        texto: 'Faça o check-in no evento para desbloquear',
+      },
+    };
+  }
+
+  if (item.id === 'quiz' && progresso.lectureStatus.tipo == "progresso" && progresso.lectureStatus.atual < 1) {
+    return {
+      ...item,
+      status: {
+        tipo: 'bloqueado' as const,
+        texto: 'Faça check-in em, pelo menos, uma palestra para desbloquear',
+      },
+    };
+  }
+
+  if (item.id === 'avaliar-aplicativo' && concluidas < 2) {
+    return {
+      ...item,
+      status: {
+        tipo: 'bloqueado' as const,
+        texto: `Faça mais ${2 - concluidas} conquista(s) para desbloquear`,
+      },
+    };
+  }
+
+  // Check-in do evento
+  if (item.id === 'check-in-evento') {
+    return {
+      ...item,
+      status: estadoCheckIn === 'pronto'
+        ? progresso.eventStatus
+        : aguardando,
+    };
+  }
+
+  // Check-in das palestras
+  if (item.id === 'check-in-palestras') {
+    return {
+      ...item,
+      status: estadoCheckIn === 'pronto'
+        ? progresso.lectureStatus
+        : aguardando,
+    };
+  }
+
+  // Votação
+  if (item.id === 'votar-poster' && situacaoVoto) {
+    const texto = `${situacaoVoto.votesUsed} de ${situacaoVoto.votesLimit} votos`;
+
+    const status: StatusMissao =
+      situacaoVoto.votesRemaining === 0
         ? { tipo: 'concluido', texto }
-        : { tipo: 'progresso', atual: situacaoVoto.votesUsed, total: situacaoVoto.votesLimit, texto };
-      return { ...item, status };
-    }
-    if (item.id === 'votar-poster') return { ...item, status: {
-      tipo: 'progresso' as const, atual: 0, total: 0,
-      texto: estadoVoto === 'erro' ? 'Não foi possível consultar os votos' : 'Consultando votos...',
-    } };
-    if (item.id === 'conectar-pessoas') return { ...item, status: conexoesProgress(estadoCheckIn, eventoConexao, resumoConexoes) };
-    if (item.id === 'quiz') {
-      return {
-        ...item,
-        xp: quizXpTexto(estadoQuiz, quizzes, eventoCheckIn?.id),
-        status: quizProgress(estadoQuiz, quizzes, eventoCheckIn?.id),
-      };
-    }
-    if (item.id === 'avaliar-aplicativo') {
-      const status: StatusMissao = estadoAvaliacao === 'carregando'
-        ? { tipo: 'progresso', atual: 0, total: 0, texto: 'Consultando avaliação...' }
+        : {
+            tipo: 'progresso',
+            atual: situacaoVoto.votesUsed,
+            total: situacaoVoto.votesLimit,
+            texto,
+          };
+
+    return { ...item, status };
+  }
+
+  if (item.id === 'votar-poster') {
+    return {
+      ...item,
+      status: {
+        tipo: 'progresso',
+        atual: 0,
+        total: 0,
+        texto:
+          estadoVoto === 'erro'
+            ? 'Não foi possível consultar os votos'
+            : 'Consultando votos...',
+      },
+    };
+  }
+
+  // Conexões
+  if (item.id === 'conectar-pessoas') {
+    return {
+      ...item,
+      status: conexoesProgress(
+        estadoCheckIn,
+        eventoConexao,
+        resumoConexoes
+      ),
+    };
+  }
+
+  // Quiz
+  if (item.id === 'quiz') {
+    return {
+      ...item,
+      xp: quizXpTexto(estadoQuiz, quizzes, eventoCheckIn?.id),
+      status: quizProgress(
+        estadoQuiz,
+        quizzes,
+        eventoCheckIn?.id
+      ),
+    };
+  }
+
+  // Avaliação
+  if (item.id === 'avaliar-aplicativo') {
+    const status: StatusMissao =
+      estadoAvaliacao === 'carregando'
+        ? {
+            tipo: 'progresso',
+            atual: 0,
+            total: 0,
+            texto: 'Consultando avaliação...',
+          }
         : avaliacaoEnviada === null
-          ? { tipo: 'progresso', atual: 0, total: 0, texto: 'Não foi possível consultar a avaliação' }
+          ? {
+              tipo: 'progresso',
+              atual: 0,
+              total: 0,
+              texto: 'Não foi possível consultar a avaliação',
+            }
           : avaliacaoEnviada
-            ? { tipo: 'concluido', texto: 'Avaliação enviada' }
-            : { tipo: 'progresso', atual: 0, total: 1, texto: 'Avaliação disponível' };
-      return { ...item, status };
-    }
-    return item;
-  });
+            ? {
+                tipo: 'concluido',
+                texto: 'Avaliação enviada',
+              }
+            : {
+                tipo: 'progresso',
+                atual: 0,
+                total: 1,
+                texto: 'Avaliação disponível',
+              };
+
+    return { ...item, status };
+  }
+
+  return item;
+});
 
   const atalhos = ehAdmin ? ATALHOS_ADMIN : missoes;
   const totalMissoes = ATALHOS_PARTICIPANTE.length;
@@ -480,7 +612,7 @@ export default function HomeScreen() {
                   key={item.id}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.titulo}. ${item.descricao}`}
-                  onPress={() => router.navigate(item.rota)}
+                  onPress={bloqueada ? undefined : () => router.navigate(item.rota)}
                   style={(state) => {
                     const { pressed, hovered } = estadoDoToque(state);
                     return [
