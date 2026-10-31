@@ -87,7 +87,7 @@ export async function adicionarPergunta(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(pergunta),
   });
-  if (!res.ok) throw new Error('Erro ao adicionar pergunta');
+  if (!res.ok) throw new Error((await lerErro(res)).message || 'Erro ao adicionar pergunta');
   return res.json();
 }
 

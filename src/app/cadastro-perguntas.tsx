@@ -1,6 +1,6 @@
 import { adicionarPergunta, listarPalestras, Palestra } from '@/services/palestraService';
 import { erro, sucesso } from '@/utils/notify';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
     Modal,
@@ -12,7 +12,13 @@ import {
     View
 } from 'react-native';
 
+// Tamanho padrão das colunas de texto na API (VARCHAR 255)
+const TAMANHO_MAXIMO = 255;
+const TAMANHO_MINIMO_ENUNCIADO = 5;
+
 export default function CadastroPerguntas() {
+    // Vindo da tela de quizzes, a palestra já escolhida lá chega pré-selecionada
+    const { palestraId } = useLocalSearchParams<{ palestraId?: string }>();
     const [pergunta, setPergunta] = useState('');
     const [alternativas, setAlternativas] = useState(['', '', '', '']);
     const [corretas, setCorretas] = useState<number[]>([]);
@@ -36,6 +42,8 @@ export default function CadastroPerguntas() {
             const lista = await listarPalestras();
 
             setPalestras(lista);
+            const preSelecionada = lista.find((p) => String(p.id) === palestraId);
+            if (preSelecionada) setPalestraSelecionada(preSelecionada);
         } catch (error) {
             erro('Erro', 'Não foi possível carregar as palestras.');
         } finally {
@@ -76,13 +84,29 @@ export default function CadastroPerguntas() {
             return;
         }
 
+        if (pergunta.trim().length < TAMANHO_MINIMO_ENUNCIADO) {
+            erro('Atenção', `O enunciado precisa ter pelo menos ${TAMANHO_MINIMO_ENUNCIADO} caracteres.`);
+            return;
+        }
+
         if (alternativas.some((alternativa) => !alternativa.trim())) {
             erro('Campo obrigatório', 'Preencha as quatro alternativas.');
             return;
         }
 
+        const textos = alternativas.map((alternativa) => alternativa.trim().toLowerCase());
+        if (new Set(textos).size !== textos.length) {
+            erro('Atenção', 'As alternativas não podem se repetir.');
+            return;
+        }
+
         if (corretas.length === 0) {
             erro('Campo obrigatório', 'Selecione pelo menos uma alternativa correta.');
+            return;
+        }
+
+        if (corretas.length === alternativas.length) {
+            erro('Atenção', 'Pelo menos uma alternativa precisa ser incorreta.');
             return;
         }
 
@@ -111,7 +135,10 @@ export default function CadastroPerguntas() {
                 'A pergunta foi adicionada com sucesso.'
             );
 
-            router.push('/lista-perguntas')
+            limparFormulario();
+            router.back();
+        } catch (e) {
+            erro('Erro', e instanceof Error ? e.message : 'Não foi possível cadastrar a pergunta.');
         } finally {
             setSalvando(false);
         }
@@ -176,6 +203,7 @@ export default function CadastroPerguntas() {
                             value={pergunta}
                             onChangeText={setPergunta}
                             multiline
+                            maxLength={TAMANHO_MAXIMO}
                             editable={!salvando}
                         />
                     </View>
@@ -206,6 +234,7 @@ export default function CadastroPerguntas() {
                                     onChangeText={(texto) =>
                                         atualizarAlternativa(texto, index)
                                     }
+                                    maxLength={TAMANHO_MAXIMO}
                                     editable={!salvando}
                                 />
 
@@ -235,7 +264,7 @@ export default function CadastroPerguntas() {
                         ))}
 
                         <Text style={styles.hint}>
-                            Selecione apenas uma ou mais alternativas como correta.
+                            Marque uma ou mais alternativas corretas (pelo menos uma deve ficar incorreta).
                         </Text>
 
                     </View>
