@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +16,7 @@ import { MENSAGEM_CORRIJA_CAMPOS } from '@/constants/formulario';
 import { useFormulario } from '@/hooks/use-formulario';
 import { ErroApi } from '@/services/erro-api';
 import { salvarUsuario } from '@/services/usuarioService';
+import { sucesso } from '@/utils/notify';
 import {
   obrigatorio,
   validarConfirmacaoSenha,
@@ -95,11 +98,13 @@ export default function RegisterScreen() {
       });
 
       formulario.limpar();
-      // O cadastro já foi concluído; a mensagem informa se o e-mail de confirmação foi enviado ou falhou.
-      const emailOk = cadastrado.emailConfirmacaoEnviado || cadastrado.emailConfirmacaoSimulado;
-      setMensagem({
-        texto: cadastrado.mensagemEmail || 'Usuário cadastrado com sucesso!',
-        tipo: emailOk ? 'sucesso' : 'erro',
+      sucesso(
+        'Cadastro realizado com sucesso!',
+        cadastrado.mensagemEmail || 'Faça login com seu e-mail e senha.'
+      );
+      router.replace({
+        pathname: '/',
+        params: { email: cadastrado.email || valores.email.trim() },
       });
     } catch (error) {
       if (error instanceof ErroApi && formulario.definirErros(error.campos)) {
@@ -117,7 +122,11 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
         <View style={styles.logo}>
           <View style={styles.logoIcon}>
@@ -239,20 +248,25 @@ export default function RegisterScreen() {
 
         </View>
 
-        <View style={styles.login}>
+        <Pressable
+          style={styles.login}
+          onPress={() => router.replace('/')}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar para a tela de login"
+        >
           <Text style={styles.loginText}>
             Já possui uma conta?{' '}
             <Text style={styles.loginHighlight}>
               Entrar
             </Text>
           </Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.footer}>
           © 2026 · Sistema de Usuários
         </Text>
 
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -264,7 +278,7 @@ const styles = StyleSheet.create({
   },
 
   container: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',

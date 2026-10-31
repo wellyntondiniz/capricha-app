@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,11 +25,21 @@ function validarCampo(campo: Campo, valores: Record<Campo, string>): string | un
 }
 
 export default function LoginScreen() {
+  const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
   const { salvarSessao } = useAuth();
-  const formulario = useFormulario<Campo>({ email: '', senha: '' }, validarCampo);
+  const formulario = useFormulario<Campo>(
+    { email: typeof emailParam === 'string' ? emailParam : '', senha: '' },
+    validarCampo
+  );
   const { valores, erros } = formulario;
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
+
+  useEffect(() => {
+    if (typeof emailParam === 'string' && emailParam) {
+      formulario.alterar('email', emailParam);
+    }
+  }, [emailParam]);
 
   function alterar(campo: Campo, valor: string) {
     formulario.alterar(campo, valor);
