@@ -20,15 +20,15 @@ import { checkInProgress } from '@/features/check-in/check-in-progress';
 import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
 import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
-import { escolherEventoAtivo } from '@/features/home/evento-ativo';
-import { quizProgress, quizXpTexto } from '@/features/quiz/quiz-progress';
 import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
 import type { ResumoConexoes } from '@/features/conexoes/types';
+import { escolherEventoAtivo } from '@/features/home/evento-ativo';
+import { quizProgress, quizXpTexto } from '@/features/quiz/quiz-progress';
 import { httpVotacaoService, type VotacaoSituacao } from '@/features/votacao/http-votacao-service';
 import { consultarAvaliacao } from '@/services/avaliacaoAplicativoService';
 import { metricasUsuario } from '@/services/metricas-usuario';
-import { listarQuizzes, type Quiz } from '@/services/quizService';
 import { listarPorEvento } from '@/services/participacaoService';
+import { listarQuizzes, type Quiz } from '@/services/quizService';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
 type Icone = keyof typeof Ionicons.glyphMap;
@@ -88,11 +88,11 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
   {
     id: 'conectar-pessoas',
     titulo: 'Conectar Pessoas',
-    descricao: 'Conecte-se com outros participantes do evento.',
+    descricao: 'Conecte-se com 20 participantes do evento para concluir a missão.',
     icone: 'people',
     cor: Cores.vinhoClaro,
     rota: '/conectar-pessoas',
-    xp: '+150 XP',
+    xp: '+150 XP por conexão',
   },
   {
     id: 'votar-poster',
@@ -552,6 +552,17 @@ export default function HomeScreen() {
                       </View>
                     )}
 
+                    {item.id === 'conectar-pessoas' && item.status?.tipo === 'concluido' && (
+                      <View style={styles.progressoLinha}>
+                        <View style={styles.progressoTrilha}>
+                          <View style={[styles.progressoPreenchimento, styles.progressoConcluido, { width: '100%' }]} />
+                        </View>
+                        <Text style={styles.continuaTexto}>
+                          Você pode continuar se conectando: cada nova conexão rende +150 XP
+                        </Text>
+                      </View>
+                    )}
+
                     {item.status?.tipo === 'progresso' && (
                       <View style={styles.progressoLinha}>
                         <View style={styles.progressoTrilha}>
@@ -869,6 +880,8 @@ const styles = StyleSheet.create({
     backgroundColor: Cores.destaque,
   },
   progressoTexto: { color: Cores.textoSuave, fontSize: 12, fontWeight: '600' },
+  progressoConcluido: { backgroundColor: '#34D399' },
+  continuaTexto: { color: '#34D399', fontSize: 12, fontWeight: '700' },
   cardDireita: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   xpBadge: {
     paddingHorizontal: 10,
