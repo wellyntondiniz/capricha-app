@@ -14,6 +14,13 @@ export type Usuario = {
     foto? : string | null;
 }
 
+// Resposta do cadastro: usuário criado + situação do e-mail de confirmação.
+export type UsuarioCadastrado = Usuario & {
+  emailConfirmacaoEnviado: boolean;
+  emailConfirmacaoSimulado: boolean;
+  mensagemEmail: string;
+};
+
 const URL = `${BASE_URL}/usuario`;
 
 export function obterUrlFotoUsuario(foto?: string | null): string | undefined {
@@ -36,7 +43,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   return res.json();
 }
 
-export async function salvarUsuario(usuario: Omit<Usuario, 'id'>): Promise<Usuario> {
+export async function salvarUsuario(usuario: Omit<Usuario, 'id'>): Promise<UsuarioCadastrado> {
   let res: Response;
   try {
     res = await fetch(URL, {
