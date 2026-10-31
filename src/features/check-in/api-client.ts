@@ -6,6 +6,7 @@ const knownCodes: CheckInFailureCode[] = [
   'INVALID_EVENT_TOKEN', 'INVALID_QR', 'AUTH_REQUIRED', 'FORBIDDEN', 'INVALID_REQUEST',
   'LECTURE_NOT_FOUND', 'INVALID_LECTURE_TOKEN', 'QR_CONTEXT_MISMATCH',
   'ALREADY_VOTED', 'VOTE_LIMIT_REACHED', 'NOT_CHECKED_IN', 'RESUMO_NOT_FOUND', 'EVENT_NOT_ACTIVE',
+  'EVENT_CHECK_IN_REQUIRED',
 ];
 
 // A credencial vem do AuthContext em cada chamada. Este módulo não mantém sessão.

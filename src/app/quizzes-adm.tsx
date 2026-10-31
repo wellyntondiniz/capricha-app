@@ -41,11 +41,16 @@ export default function QuizzesAdmScreen() {
   const [salvando, setSalvando] = useState(false);
   const [cadastrados, setCadastrados] = useState<Quiz[]>([]);
 
+  const token = usuario?.token;
+
   const carregar = useCallback(async () => {
-    const [quizzes, lista] = await Promise.allSettled([listarQuizzes(), listarPalestras()]);
+    const [quizzes, lista] = await Promise.allSettled([
+      token ? listarQuizzes(token) : Promise.reject(new Error('Sem sessão')),
+      listarPalestras(),
+    ]);
     setCadastrados(quizzes.status === 'fulfilled' ? quizzes.value : []);
     setPalestras(lista.status === 'fulfilled' ? lista.value : []);
-  }, []);
+  }, [token]);
 
   // Recarrega ao voltar do cadastro de perguntas
   useFocusEffect(
@@ -191,7 +196,7 @@ export default function QuizzesAdmScreen() {
             <View key={quiz.id} style={styles.itemCadastrado}>
               <Text style={styles.itemTitulo}>{quiz.titulo}</Text>
               <Text style={styles.dica}>
-                {quiz.palestra.nome} · {quiz.perguntas.length} perguntas · {quiz.pontuacao} pontos
+                {quiz.palestra.nome} · {quiz.totalPerguntas} perguntas · {quiz.pontuacao} pontos
               </Text>
             </View>
           ))}

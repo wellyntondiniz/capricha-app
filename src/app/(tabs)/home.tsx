@@ -20,10 +20,14 @@ import { checkInProgress } from '@/features/check-in/check-in-progress';
 import { httpCheckInService } from '@/features/check-in/http-check-in-service';
 import { CheckInError, type CheckInEvent } from '@/features/check-in/types';
 import { conexoesProgress } from '@/features/conexoes/conexoes-progress';
+import { escolherEventoAtivo } from '@/features/home/evento-ativo';
+import { quizProgress, quizXpTexto } from '@/features/quiz/quiz-progress';
 import { httpConexaoService } from '@/features/conexoes/http-conexao-service';
 import type { ResumoConexoes } from '@/features/conexoes/types';
 import { httpVotacaoService, type VotacaoSituacao } from '@/features/votacao/http-votacao-service';
+import { consultarAvaliacao } from '@/services/avaliacaoAplicativoService';
 import { metricasUsuario } from '@/services/metricas-usuario';
+import { listarQuizzes, type Quiz } from '@/services/quizService';
 import { listarPorEvento } from '@/services/participacaoService';
 import { obterUrlFotoUsuario } from '@/services/usuarioService';
 
@@ -79,8 +83,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     icone: 'help-circle-outline',
     cor: Cores.destaque,
     rota: '/quiz',
-    xp: '+100 XP',
-    status: { tipo: 'progresso', atual: 2, total: 3, texto: '2 de 3 quizzes' },
+    xp: '—',
   },
   {
     id: 'conectar-pessoas',
@@ -90,7 +93,6 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     cor: Cores.vinhoClaro,
     rota: '/conectar-pessoas',
     xp: '+150 XP',
-    status: { tipo: 'progresso', atual: 2, total: 3, texto: '2 de 3 conexões' },
   },
   {
     id: 'votar-poster',
@@ -100,7 +102,6 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     cor: Cores.vinho,
     rota: '/votar-poster',
     xp: '+50 XP',
-    status: { tipo: 'progresso', atual: 0, total: 3, texto: 'Até 3 votos por evento' },
   },
   {
     id: 'avaliar-aplicativo',
@@ -110,7 +111,6 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     cor: Cores.vinhoEscuro,
     rota: '/avaliar-aplicativo',
     xp: '—',
-    status: { tipo: 'progresso', atual: 0, total: 1, texto: 'Avaliação disponível' },
   },
 ];
 
@@ -141,6 +141,11 @@ export default function HomeScreen() {
   const [metricas, setMetricas] = useState<{ pontos: number; posicao: number | null }>();
   const [estadoMetricas, setEstadoMetricas] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
   const [estadoVoto, setEstadoVoto] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
+  const [quizzes, setQuizzes] = useState<Quiz[] | null>(null);
+  const [estadoQuiz, setEstadoQuiz] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
+  // null = não foi possível consultar; true/false = já enviou / ainda não enviou a avaliação do app
+  const [avaliacaoEnviada, setAvaliacaoEnviada] = useState<boolean | null>(null);
+  const [estadoAvaliacao, setEstadoAvaliacao] = useState<'carregando' | 'pronto' | 'erro'>('carregando');
 
   const nomeCompleto = usuario?.nome || 'Participante';
   const primeiroNome = nomeCompleto.split(' ')[0];
@@ -170,6 +175,23 @@ export default function HomeScreen() {
       texto: estadoVoto === 'erro' ? 'Não foi possível consultar os votos' : 'Consultando votos...',
     } };
     if (item.id === 'conectar-pessoas') return { ...item, status: conexoesProgress(estadoCheckIn, eventoConexao, resumoConexoes) };
+    if (item.id === 'quiz') {
+      return {
+        ...item,
+        xp: quizXpTexto(estadoQuiz, quizzes, eventoCheckIn?.id),
+        status: quizProgress(estadoQuiz, quizzes, eventoCheckIn?.id),
+      };
+    }
+    if (item.id === 'avaliar-aplicativo') {
+      const status: StatusMissao = estadoAvaliacao === 'carregando'
+        ? { tipo: 'progresso', atual: 0, total: 0, texto: 'Consultando avaliação...' }
+        : avaliacaoEnviada === null
+          ? { tipo: 'progresso', atual: 0, total: 0, texto: 'Não foi possível consultar a avaliação' }
+          : avaliacaoEnviada
+            ? { tipo: 'concluido', texto: 'Avaliação enviada' }
+            : { tipo: 'progresso', atual: 0, total: 1, texto: 'Avaliação disponível' };
+      return { ...item, status };
+    }
     return item;
   });
 
@@ -195,6 +217,17 @@ export default function HomeScreen() {
     setSituacaoVoto(undefined);
     setEstadoVoto('carregando');
     setResumoConexoes(null);
+    setQuizzes(null);
+    setEstadoQuiz('carregando');
+    setAvaliacaoEnviada(null);
+    setEstadoAvaliacao('carregando');
+    // Quiz e avaliação não derrubam a Home quando falham: o card só mostra que não conseguiu consultar.
+    listarQuizzes(token)
+      .then((lista) => { if (ativo) { setQuizzes(lista); setEstadoQuiz('pronto'); } })
+      .catch(() => { if (ativo) { setQuizzes(null); setEstadoQuiz('erro'); } });
+    consultarAvaliacao(token)
+      .then((enviada) => { if (ativo) { setAvaliacaoEnviada(enviada); setEstadoAvaliacao('pronto'); } })
+      .catch(() => { if (ativo) { setAvaliacaoEnviada(null); setEstadoAvaliacao('erro'); } });
     Promise.all([
       httpCheckInService.getEvents(usuario.token),
       httpCheckInService.getLectures(usuario.token),
@@ -209,13 +242,15 @@ export default function HomeScreen() {
         // Evento ativo das conexões: em andamento e com check-in feito (o mesmo da tela de conexões).
         setEventoConexao(eventos.find((e) => e.hasCheckedIn && e.canCheckIn));
         setResumoConexoes(conexoes);
-        // Mantém a seleção existente da Home: o primeiro evento retornado pela API.
-        setEventoCheckIn(eventos[0]);
-        setNomeEventoAtivo(eventos[0]?.nome || 'Nenhum evento disponível');
+        // Um único evento para presença, pontos, ranking, votos e quizzes (antes era sempre o primeiro da lista,
+        // que podia não ser o evento em que o participante fez check-in e pontuou).
+        const eventoAtivo = escolherEventoAtivo(eventos);
+        setEventoCheckIn(eventoAtivo);
+        setNomeEventoAtivo(eventoAtivo?.nome || 'Nenhum evento disponível');
         setPalestrasCheckIn(palestras);
         setEstadoCheckIn('pronto');
-        if (eventos[0]) {
-          listarPorEvento(eventos[0].id)
+        if (eventoAtivo) {
+          listarPorEvento(eventoAtivo.id)
             .then(participacoes => {
               if (!ativo) return;
               setMetricas(metricasUsuario(participacoes, usuario.id!));
@@ -227,9 +262,9 @@ export default function HomeScreen() {
           setEstadoMetricas('pronto');
         }
         // Progresso dos votos no mesmo evento; se falhar, o card mantém o texto padrão.
-        if (eventos[0]) {
+        if (eventoAtivo) {
           httpVotacaoService
-            .getSituacao(eventos[0].id, token)
+            .getSituacao(eventoAtivo.id, token)
             .then((situacao) => { if (ativo) { setSituacaoVoto(situacao); setEstadoVoto('pronto'); } })
             .catch(() => { if (ativo) { setSituacaoVoto(undefined); setEstadoVoto('erro'); } });
         } else {

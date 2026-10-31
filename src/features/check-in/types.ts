@@ -38,7 +38,8 @@ export type CheckInFailureCode =
   | 'ALREADY_CHECKED_IN' | 'CHECK_IN_NOT_AVAILABLE' | 'EVENT_NOT_FOUND'
   | 'INVALID_EVENT_TOKEN' | 'INVALID_QR' | 'AUTH_REQUIRED' | 'NETWORK_ERROR'
   | 'FORBIDDEN' | 'INVALID_REQUEST' | 'UNKNOWN' | 'LECTURE_NOT_FOUND' | 'INVALID_LECTURE_TOKEN' | 'QR_CONTEXT_MISMATCH'
-  | 'ALREADY_VOTED' | 'VOTE_LIMIT_REACHED' | 'NOT_CHECKED_IN' | 'RESUMO_NOT_FOUND' | 'EVENT_NOT_ACTIVE';
+  | 'ALREADY_VOTED' | 'VOTE_LIMIT_REACHED' | 'NOT_CHECKED_IN' | 'RESUMO_NOT_FOUND' | 'EVENT_NOT_ACTIVE'
+  | 'EVENT_CHECK_IN_REQUIRED';
 
 export class CheckInError extends Error {
   constructor(public readonly code: CheckInFailureCode, message?: string, public readonly status?: number) {

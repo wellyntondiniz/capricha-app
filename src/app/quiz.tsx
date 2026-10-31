@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,12 @@ import {
   ResultadoQuiz,
   responderQuiz,
 } from '@/services/quizService';
+
+// Onde o participante resolve cada bloqueio (o servidor é quem decide se o quiz está liberado)
+const ROTA_DO_BLOQUEIO = {
+  EVENT_CHECK_IN_REQUIRED: { rota: '/check-in', texto: 'Fazer check-in no evento' },
+  LECTURE_CHECK_IN_REQUIRED: { rota: '/check-in-palestras', texto: 'Fazer check-in na palestra' },
+} as const;
 
 const mostrarAlerta = (titulo: string, mensagem: string) => {
   if (Platform.OS === 'web') {
@@ -48,10 +54,9 @@ export default function QuizScreen() {
 
   const carregar = useCallback(async () => {
     if (!token) return;
-    setCarregando(true);
     setErro('');
     try {
-      const [lista, respostas] = await Promise.all([listarQuizzes(), listarMinhasRespostas(token)]);
+      const [lista, respostas] = await Promise.all([listarQuizzes(token), listarMinhasRespostas(token)]);
       setQuizzes(lista);
       setRespondidos(Object.fromEntries(respostas.map((r) => [r.quizId, r])));
     } catch (e) {
@@ -61,17 +66,27 @@ export default function QuizScreen() {
     }
   }, [token]);
 
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  // Recarrega sempre que a tela volta ao foco: depois de um check-in o quiz precisa aparecer liberado
+  useFocusEffect(
+    useCallback(() => {
+      setCarregando(true);
+      carregar();
+    }, [carregar])
+  );
 
   const abrirQuiz = (quiz: Quiz) => {
     const resposta = respondidos[quiz.id];
-    if (resposta) {
+    if (resposta || quiz.respondido) {
       mostrarAlerta(
         'Quiz já respondido',
-        `Você já respondeu este quiz e fez ${resposta.pontosObtidos} de ${quiz.pontuacao} pontos.`
+        resposta
+          ? `Você já respondeu este quiz e fez ${resposta.pontosObtidos} de ${quiz.pontuacao} pontos.`
+          : 'Você já respondeu este quiz.'
       );
+      return;
+    }
+    if (!quiz.disponivel) {
+      mostrarAlerta('Quiz indisponível', quiz.mensagemBloqueio ?? 'Este quiz não está disponível no momento.');
       return;
     }
     setQuizAtual(quiz);
@@ -113,10 +128,12 @@ export default function QuizScreen() {
       setResultado(res);
       setRespondidos((atual) => ({ ...atual, [res.quizId]: res }));
     } catch (e) {
-      if (e instanceof QuizErro && e.status === 409) {
-        // Já respondido (por exemplo, em outro aparelho): volta para a lista com o resultado gravado
-        mostrarAlerta('Quiz já respondido', e.message);
+      // 403/409: o servidor recusou por regra (sem check-in, já respondido, evento encerrado...).
+      // Volta para a lista, que é recarregada com a situação real do quiz.
+      if (e instanceof QuizErro && (e.status === 403 || e.status === 409)) {
+        mostrarAlerta(e.status === 409 ? 'Quiz indisponível' : 'Check-in necessário', e.message);
         voltarParaLista();
+        setCarregando(true);
         carregar();
         return;
       }
@@ -158,6 +175,9 @@ export default function QuizScreen() {
             <Text style={styles.textoSecundario}>
               Você acertou {resultado.acertos} de {resultado.totalPerguntas} perguntas.
             </Text>
+            {resultado.pontosObtidos === 0 && (
+              <Text style={styles.textoSecundario}>Desta vez não foi possível pontuar.</Text>
+            )}
             <Pressable style={styles.button} onPress={voltarParaLista}>
               <Text style={styles.buttonText}>Voltar para os quizzes</Text>
             </Pressable>
@@ -242,20 +262,29 @@ export default function QuizScreen() {
           !erro &&
           quizzes.map((quiz) => {
             const resposta = respondidos[quiz.id];
+            const jaRespondeu = !!resposta || quiz.respondido;
+            const bloqueado = !jaRespondeu && !quiz.disponivel;
+            const acao = bloqueado && quiz.bloqueio && quiz.bloqueio !== 'QUIZ_EMPTY' ? ROTA_DO_BLOQUEIO[quiz.bloqueio] : null;
             return (
               <Pressable
                 key={quiz.id}
-                style={[styles.card, styles.itemLista, !!resposta && styles.itemRespondido]}
+                style={[styles.card, styles.itemLista, (jaRespondeu || bloqueado) && styles.itemRespondido]}
                 onPress={() => abrirQuiz(quiz)}
               >
                 <Text style={styles.itemTitulo}>{quiz.titulo}</Text>
                 <Text style={styles.textoSecundario}>{quiz.palestra.nome}</Text>
                 {!!quiz.descricao && <Text style={styles.textoSecundario}>{quiz.descricao}</Text>}
                 <Text style={styles.badge}>
-                  {resposta
-                    ? `Respondido · ${resposta.pontosObtidos} de ${quiz.pontuacao} pontos`
-                    : `${quiz.perguntas.length} perguntas · ${quiz.pontuacao} pontos`}
+                  {jaRespondeu
+                    ? `Respondido · ${resposta?.pontosObtidos ?? 0} de ${quiz.pontuacao} pontos`
+                    : `${quiz.totalPerguntas} ${quiz.totalPerguntas === 1 ? 'pergunta' : 'perguntas'} · ${quiz.pontuacao} pontos`}
                 </Text>
+                {bloqueado && !!quiz.mensagemBloqueio && <Text style={styles.aviso}>🔒 {quiz.mensagemBloqueio}</Text>}
+                {!!acao && (
+                  <Pressable style={styles.buttonSecundario} onPress={() => router.push(acao.rota)}>
+                    <Text style={styles.buttonText}>{acao.texto}</Text>
+                  </Pressable>
+                )}
               </Pressable>
             );
           })}
@@ -295,6 +324,7 @@ const styles = StyleSheet.create({
   check: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   button: { height: 41, borderRadius: 5, backgroundColor: '#941D3E', alignItems: 'center', justifyContent: 'center', marginTop: 22, paddingHorizontal: 20 },
   buttonDesabilitado: { opacity: 0.6 },
+  buttonSecundario: { height: 38, borderRadius: 5, borderWidth: 1, borderColor: '#A92B50', alignItems: 'center', justifyContent: 'center', marginTop: 10, paddingHorizontal: 16 },
   buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   resultadoPontos: { color: '#F2F2F4', fontSize: 36, fontWeight: '700', textAlign: 'center', marginVertical: 12 },
   link: { color: '#A92B50', fontSize: 14, alignSelf: 'flex-start' },

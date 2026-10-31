@@ -12,13 +12,22 @@ export type Pergunta = {
   alternativas: Alternativa[];
 };
 
+// Motivos pelos quais o participante ainda não pode responder (definidos pelo servidor)
+export type BloqueioQuiz = 'EVENT_CHECK_IN_REQUIRED' | 'LECTURE_CHECK_IN_REQUIRED' | 'QUIZ_EMPTY';
+
 export type Quiz = {
   id: number;
   titulo: string;
-  descricao?: string;
+  descricao?: string | null;
   pontuacao: number;
-  palestra: { id: number; nome: string };
+  palestra: { id: number; nome: string; eventoId: number | null };
+  // Total de perguntas do quiz; a lista só vem preenchida quando o participante pode responder
+  totalPerguntas: number;
   perguntas: Pergunta[];
+  respondido: boolean;
+  disponivel: boolean;
+  bloqueio: BloqueioQuiz | null;
+  mensagemBloqueio: string | null;
 };
 
 export type RespostaPergunta = {
@@ -34,7 +43,7 @@ export type ResultadoQuiz = {
 };
 
 export class QuizErro extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly code?: string) {
     super(message);
   }
 }
@@ -44,7 +53,7 @@ const URL = `${BASE_URL}/quizzes`;
 async function lerErro(res: Response, padrao: string): Promise<QuizErro> {
   try {
     const corpo = await res.json();
-    return new QuizErro(corpo?.mensagem || padrao, res.status);
+    return new QuizErro(corpo?.mensagem || padrao, res.status, corpo?.code);
   } catch {
     return new QuizErro(padrao, res.status);
   }
@@ -54,8 +63,9 @@ function autorizacao(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
-export async function listarQuizzes(): Promise<Quiz[]> {
-  const res = await fetch(URL);
+// Quizzes dos eventos ativos, já com a situação do usuário da sessão (respondido, liberado ou bloqueado)
+export async function listarQuizzes(token: string): Promise<Quiz[]> {
+  const res = await fetch(URL, { headers: autorizacao(token) });
   if (!res.ok) throw await lerErro(res, 'Erro ao listar quizzes');
   return res.json();
 }
