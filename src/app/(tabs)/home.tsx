@@ -110,7 +110,7 @@ const ATALHOS_PARTICIPANTE: Atalho[] = [
     icone: 'chatbubble-ellipses-outline',
     cor: Cores.vinhoEscuro,
     rota: '/avaliar-aplicativo',
-    xp: '—',
+    xp: '+200 XP',
   },
 ];
 
