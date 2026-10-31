@@ -22,20 +22,257 @@ import {
 
 type CampoAvaliacao = Exclude<keyof RespostasAvaliacao, 'comentario'>;
 
-const PERGUNTAS: { campo: CampoAvaliacao; texto: string }[] = [
-  { campo: 'navegacao', texto: 'Navegar pelo aplicativo foi simples e sem complicações.' },
-  { campo: 'clarezaInformacoes', texto: 'As informações apresentadas no app foram fáceis de entender.' },
-  { campo: 'utilidadeFuncionalidades', texto: 'As funcionalidades do aplicativo foram úteis durante o evento.' },
-  { campo: 'desempenhoTecnico', texto: 'O aplicativo teve um ótimo desempenho técnico.' },
-  { campo: 'recomendacao', texto: 'Eu recomendaria este aplicativo para futuros eventos da faculdade.' },
+type PerguntaItem = {
+  campo: CampoAvaliacao;
+  codigo: string;
+  construto: string;
+  texto: string;
+};
+
+const PERGUNTAS: PerguntaItem[] = [
+  // 1. TAM — Facilidade de uso percebida (PEOU)
+  {
+    campo: 'peou01',
+    codigo: 'PEOU01',
+    construto: '1. Facilidade de uso percebida (PEOU)',
+    texto: 'Aprender a utilizar o aplicativo foi fácil para mim.',
+  },
+  {
+    campo: 'peou02',
+    codigo: 'PEOU02',
+    construto: '1. Facilidade de uso percebida (PEOU)',
+    texto: 'Foi fácil realizar as atividades que eu desejava no aplicativo.',
+  },
+  {
+    campo: 'peou03',
+    codigo: 'PEOU03',
+    construto: '1. Facilidade de uso percebida (PEOU)',
+    texto: 'Minha interação com o aplicativo foi clara e compreensível.',
+  },
+  {
+    campo: 'peou04',
+    codigo: 'PEOU04',
+    construto: '1. Facilidade de uso percebida (PEOU)',
+    texto: 'Considero o aplicativo flexível para realizar as atividades disponíveis.',
+  },
+  {
+    campo: 'peou05',
+    codigo: 'PEOU05',
+    construto: '1. Facilidade de uso percebida (PEOU)',
+    texto: 'Foi fácil adquirir habilidade para utilizar o aplicativo.',
+  },
+  {
+    campo: 'peou06',
+    codigo: 'PEOU06',
+    construto: '1. Facilidade de uso percebida (PEOU)',
+    texto: 'De modo geral, considero o aplicativo fácil de usar.',
+  },
+
+  // 2. TAM — Utilidade percebida (PU)
+  {
+    campo: 'pu01',
+    codigo: 'PU01',
+    construto: '2. Utilidade percebida (PU)',
+    texto: 'O aplicativo permitiu que eu acompanhasse minha participação no evento com maior eficiência.',
+  },
+  {
+    campo: 'pu02',
+    codigo: 'PU02',
+    construto: '2. Utilidade percebida (PU)',
+    texto: 'O aplicativo facilitou a realização das atividades propostas durante o evento.',
+  },
+  {
+    campo: 'pu03',
+    codigo: 'PU03',
+    construto: '2. Utilidade percebida (PU)',
+    texto: 'O aplicativo contribuiu para melhorar minha participação na Semana de Computação.',
+  },
+  {
+    campo: 'pu04',
+    codigo: 'PU04',
+    construto: '2. Utilidade percebida (PU)',
+    texto: 'O aplicativo tornou mais práticas as atividades de check-in, quizzes, conexões e votação.',
+  },
+  {
+    campo: 'pu05',
+    codigo: 'PU05',
+    construto: '2. Utilidade percebida (PU)',
+    texto: 'O aplicativo foi útil para minha experiência no evento.',
+  },
+  {
+    campo: 'pu06',
+    codigo: 'PU06',
+    construto: '2. Utilidade percebida (PU)',
+    texto: 'De modo geral, considero o aplicativo uma ferramenta útil para participar de eventos acadêmicos.',
+  },
+
+  // 3. GAMEFULQUEST — Realização (AC)
+  {
+    campo: 'ac01',
+    codigo: 'AC01',
+    construto: '3. Realização (AC)',
+    texto: 'Utilizar o aplicativo me proporcionou uma sensação de conquista.',
+  },
+  {
+    campo: 'ac02',
+    codigo: 'AC02',
+    construto: '3. Realização (AC)',
+    texto: 'Senti satisfação ao concluir as missões do aplicativo.',
+  },
+  {
+    campo: 'ac03',
+    codigo: 'AC03',
+    construto: '3. Realização (AC)',
+    texto: 'O aplicativo me incentivou a alcançar objetivos durante o evento.',
+  },
+  {
+    campo: 'ac04',
+    codigo: 'AC04',
+    construto: '3. Realização (AC)',
+    texto: 'Acompanhar meu progresso no aplicativo foi gratificante.',
+  },
+  {
+    campo: 'ac05',
+    codigo: 'AC05',
+    construto: '3. Realização (AC)',
+    texto: 'Senti que estava progredindo ao completar as atividades propostas.',
+  },
+  {
+    campo: 'ac06',
+    codigo: 'AC06',
+    construto: '3. Realização (AC)',
+    texto: 'Concluir as missões me proporcionou uma sensação de sucesso.',
+  },
+  {
+    campo: 'ac07',
+    codigo: 'AC07',
+    construto: '3. Realização (AC)',
+    texto: 'As recompensas do aplicativo fizeram com que minhas conquistas parecessem importantes.',
+  },
+  {
+    campo: 'ac08',
+    codigo: 'AC08',
+    construto: '3. Realização (AC)',
+    texto: 'O aplicativo me motivou a completar novos desafios.',
+  },
+
+  // 4. GAMEFULQUEST — Experiência social (SE)
+  {
+    campo: 'se01',
+    codigo: 'SE01',
+    construto: '4. Experiência social (SE)',
+    texto: 'Utilizar o aplicativo proporcionou oportunidades de interação social.',
+  },
+  {
+    campo: 'se02',
+    codigo: 'SE02',
+    construto: '4. Experiência social (SE)',
+    texto: 'O aplicativo me incentivou a interagir com outros participantes.',
+  },
+  {
+    campo: 'se03',
+    codigo: 'SE03',
+    construto: '4. Experiência social (SE)',
+    texto: 'Senti que fazia parte de uma experiência compartilhada com outras pessoas.',
+  },
+  {
+    campo: 'se04',
+    codigo: 'SE04',
+    construto: '4. Experiência social (SE)',
+    texto: 'As atividades do aplicativo favoreceram meu contato com outros participantes.',
+  },
+  {
+    campo: 'se05',
+    codigo: 'SE05',
+    construto: '4. Experiência social (SE)',
+    texto: 'O aplicativo tornou a interação com outras pessoas mais interessante.',
+  },
+  {
+    campo: 'se06',
+    codigo: 'SE06',
+    construto: '4. Experiência social (SE)',
+    texto: 'A participação de outras pessoas contribuiu para minha experiência com o aplicativo.',
+  },
+  {
+    campo: 'se07',
+    codigo: 'SE07',
+    construto: '4. Experiência social (SE)',
+    texto: 'O aplicativo me proporcionou oportunidades de conhecer novas pessoas.',
+  },
+  {
+    campo: 'se08',
+    codigo: 'SE08',
+    construto: '4. Experiência social (SE)',
+    texto: 'As interações sociais foram uma parte importante da minha experiência com o aplicativo.',
+  },
+
+  // 5. Modelo 3C — Comunicação (COM)
+  {
+    campo: 'com01',
+    codigo: 'COM01',
+    construto: '5. Comunicação (COM)',
+    texto: 'O aplicativo facilitou o início de conversas com outros participantes do evento.',
+  },
+  {
+    campo: 'com02',
+    codigo: 'COM02',
+    construto: '5. Comunicação (COM)',
+    texto: 'As conexões realizadas pelo aplicativo favoreceram a troca de informações sobre as atividades do evento.',
+  },
+  {
+    campo: 'com03',
+    codigo: 'COM03',
+    construto: '5. Comunicação (COM)',
+    texto: 'O aplicativo incentivou o compartilhamento de conhecimentos ou experiências entre participantes.',
+  },
+
+  // 6. Modelo 3C — Coordenação (COO)
+  {
+    campo: 'coo01',
+    codigo: 'COO01',
+    construto: '6. Coordenação (COO)',
+    texto: 'O aplicativo facilitou a combinação de atividades com outros participantes.',
+  },
+  {
+    campo: 'coo02',
+    codigo: 'COO02',
+    construto: '6. Coordenação (COO)',
+    texto: 'As conexões realizadas pelo aplicativo ajudaram a organizar encontros ou interações durante o evento.',
+  },
+  {
+    campo: 'coo03',
+    codigo: 'COO03',
+    construto: '6. Coordenação (COO)',
+    texto: 'O aplicativo favoreceu a organização de ações conjuntas, como visitar pôsteres ou participar de atividades.',
+  },
+
+  // 7. Modelo 3C — Cooperação (COP)
+  {
+    campo: 'cop01',
+    codigo: 'COP01',
+    construto: '7. Cooperação (COP)',
+    texto: 'O aplicativo favoreceu situações de ajuda mútua entre participantes.',
+  },
+  {
+    campo: 'cop02',
+    codigo: 'COP02',
+    construto: '7. Cooperação (COP)',
+    texto: 'As interações incentivadas pelo aplicativo contribuíram para a realização de atividades em conjunto.',
+  },
+  {
+    campo: 'cop03',
+    codigo: 'COP03',
+    construto: '7. Cooperação (COP)',
+    texto: 'O aplicativo facilitou a cooperação entre participantes para alcançar objetivos compartilhados.',
+  },
 ];
 
 const OPCOES = [
-  { valor: 1, emoji: '😄', rotulo: 'Muito bom' },
-  { valor: 2, emoji: '🙂', rotulo: 'Bom' },
-  { valor: 3, emoji: '😐', rotulo: 'Regular' },
-  { valor: 4, emoji: '🙁', rotulo: 'Ruim' },
-  { valor: 5, emoji: '😞', rotulo: 'Muito ruim' },
+  { valor: 1, emoji: '😞', rotulo: 'Discordo totalmente' },
+  { valor: 2, emoji: '🙁', rotulo: 'Discordo' },
+  { valor: 3, emoji: '😐', rotulo: 'Neutro' },
+  { valor: 4, emoji: '🙂', rotulo: 'Concordo' },
+  { valor: 5, emoji: '😄', rotulo: 'Concordo totalmente' },
 ];
 
 export default function AvaliarAplicativoScreen() {
@@ -85,21 +322,18 @@ export default function AvaliarAplicativoScreen() {
   async function enviar() {
     if (!usuario?.token || enviando) return;
     if (totalRespondidas !== PERGUNTAS.length) {
-      setErro('Responda todas as perguntas antes de enviar.');
+      setErro(`Responda todas as perguntas antes de enviar (${totalRespondidas}/${PERGUNTAS.length} respondidas).`);
       return;
     }
 
     setErro('');
     setEnviando(true);
     try {
-      const texto = await enviarAvaliacao(usuario.token, {
-        navegacao: respostas.navegacao!,
-        clarezaInformacoes: respostas.clarezaInformacoes!,
-        utilidadeFuncionalidades: respostas.utilidadeFuncionalidades!,
-        desempenhoTecnico: respostas.desempenhoTecnico!,
-        recomendacao: respostas.recomendacao!,
+      const payload = {
+        ...(respostas as Record<CampoAvaliacao, number>),
         comentario: comentario.trim() || undefined,
-      });
+      };
+      const texto = await enviarAvaliacao(usuario.token, payload);
       setMensagem(texto);
       setRespondida(true);
     } catch (e) {
@@ -119,7 +353,7 @@ export default function AvaliarAplicativoScreen() {
             </Pressable>
             <View style={styles.headerTextos}>
               <Text accessibilityRole="header" style={styles.titulo}>Avaliar aplicativo</Text>
-              <Text style={styles.subtitulo}>Sua opinião ajuda a melhorar a experiência dos próximos eventos.</Text>
+              <Text style={styles.subtitulo}>Sua opinião ajuda a avaliar e aprimorar a experiência nos eventos acadêmicos.</Text>
             </View>
           </View>
 
@@ -145,41 +379,60 @@ export default function AvaliarAplicativoScreen() {
                 <Ionicons name="information-circle-outline" size={23} color={Cores.destaque} />
                 <View style={styles.instrucaoTextos}>
                   <Text style={styles.instrucaoTitulo}>Conte como foi sua experiência</Text>
-                  <Text style={styles.instrucaoTexto}>Escolha a opção que melhor representa sua opinião em cada afirmação.</Text>
+                  <Text style={styles.instrucaoTexto}>Indique seu grau de concordância (de 1 = Discordo totalmente a 5 = Concordo totalmente) para cada afirmação.</Text>
                 </View>
                 <Text style={styles.contador}>{totalRespondidas}/{PERGUNTAS.length}</Text>
               </View>
 
-              {PERGUNTAS.map((pergunta, indice) => (
-                <View key={pergunta.campo} style={styles.perguntaCard}>
-                  <View style={styles.perguntaCabecalho}>
-                    <View style={styles.numero}><Text style={styles.numeroTexto}>{indice + 1}</Text></View>
-                    <Text style={styles.perguntaTexto}>{pergunta.texto}</Text>
-                  </View>
+              {PERGUNTAS.map((pergunta, indice) => {
+                const mostrarSecao =
+                  indice === 0 || PERGUNTAS[indice - 1].construto !== pergunta.construto;
 
-                  <View accessibilityRole="radiogroup" style={styles.opcoes}>
-                    {OPCOES.map((opcao) => {
-                      const selecionada = respostas[pergunta.campo] === opcao.valor;
-                      return (
-                        <Pressable
-                          key={opcao.valor}
-                          accessibilityRole="radio"
-                          accessibilityLabel={`${opcao.rotulo}, valor ${opcao.valor}`}
-                          accessibilityState={{ selected: selecionada }}
-                          onPress={() => selecionar(pergunta.campo, opcao.valor)}
-                          style={({ pressed }) => [
-                            styles.opcao,
-                            selecionada && styles.opcaoSelecionada,
-                            pressed && styles.pressionado,
-                          ]}>
-                          <Text style={styles.emoji}>{opcao.emoji}</Text>
-                          <Text style={[styles.opcaoTexto, selecionada && styles.opcaoTextoSelecionado]}>{opcao.rotulo}</Text>
-                        </Pressable>
-                      );
-                    })}
+                return (
+                  <View key={pergunta.campo} style={styles.blocoQuestao}>
+                    {mostrarSecao && (
+                      <View style={styles.secaoHeader}>
+                        <Text style={styles.secaoTitulo}>{pergunta.construto}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.perguntaCard}>
+                      <View style={styles.perguntaCabecalho}>
+                        <View style={styles.numero}>
+                          <Text style={styles.numeroTexto}>{indice + 1}</Text>
+                        </View>
+                        <View style={styles.perguntaConteudo}>
+                          <Text style={styles.codigoBadge}>{pergunta.codigo}</Text>
+                          <Text style={styles.perguntaTexto}>{pergunta.texto}</Text>
+                        </View>
+                      </View>
+
+                      <View accessibilityRole="radiogroup" style={styles.opcoes}>
+                        {OPCOES.map((opcao) => {
+                          const selecionada = respostas[pergunta.campo] === opcao.valor;
+                          return (
+                            <Pressable
+                              key={opcao.valor}
+                              accessibilityRole="radio"
+                              accessibilityLabel={`${opcao.rotulo}, valor ${opcao.valor}`}
+                              accessibilityState={{ selected: selecionada }}
+                              onPress={() => selecionar(pergunta.campo, opcao.valor)}
+                              style={({ pressed }) => [
+                                styles.opcao,
+                                selecionada && styles.opcaoSelecionada,
+                                pressed && styles.pressionado,
+                              ]}>
+                              <Text style={styles.emoji}>{opcao.emoji}</Text>
+                              <Text style={[styles.opcaoValor, selecionada && styles.opcaoTextoSelecionado]}>{opcao.valor}</Text>
+                              <Text style={[styles.opcaoTexto, selecionada && styles.opcaoTextoSelecionado]}>{opcao.rotulo}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
 
               <View style={styles.comentarioCard}>
                 <Text style={styles.comentarioTitulo}>Deseja deixar algum comentário ou sugestão?</Text>
@@ -235,16 +488,22 @@ const styles = StyleSheet.create({
   instrucaoTitulo: { color: Cores.texto, fontSize: 15, fontWeight: '800' },
   instrucaoTexto: { color: Cores.textoSuave, fontSize: 13, lineHeight: 18 },
   contador: { color: Cores.destaque, fontSize: 14, fontWeight: '800' },
+  blocoQuestao: { gap: 10 },
+  secaoHeader: { marginTop: 6, paddingHorizontal: 4 },
+  secaoTitulo: { color: Cores.destaque, fontSize: 15, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
   perguntaCard: { padding: 18, gap: 18, borderRadius: 18, backgroundColor: Cores.superficie, borderWidth: 1, borderColor: Cores.borda },
   perguntaCabecalho: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   numero: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: Cores.vinhoSuave },
   numeroTexto: { color: Cores.destaque, fontSize: 14, fontWeight: '800' },
-  perguntaTexto: { flex: 1, color: Cores.texto, fontSize: 16, lineHeight: 23, fontWeight: '700' },
+  perguntaConteudo: { flex: 1, gap: 4 },
+  codigoBadge: { color: Cores.destaque, fontSize: 12, fontWeight: '800' },
+  perguntaTexto: { color: Cores.texto, fontSize: 16, lineHeight: 23, fontWeight: '700' },
   opcoes: { flexDirection: 'row', gap: 7 },
-  opcao: { flex: 1, minWidth: 52, minHeight: 88, paddingVertical: 10, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: Cores.superficieAlta, borderWidth: 1, borderColor: Cores.borda },
+  opcao: { flex: 1, minWidth: 52, minHeight: 96, paddingVertical: 10, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 13, backgroundColor: Cores.superficieAlta, borderWidth: 1, borderColor: Cores.borda },
   opcaoSelecionada: { backgroundColor: Cores.vinho, borderColor: Cores.destaque, shadowColor: Cores.destaque, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
-  emoji: { fontSize: 27 },
-  opcaoTexto: { color: Cores.textoSuave, fontSize: 10, lineHeight: 13, textAlign: 'center', fontWeight: '700' },
+  emoji: { fontSize: 24 },
+  opcaoValor: { color: Cores.texto, fontSize: 12, fontWeight: '800' },
+  opcaoTexto: { color: Cores.textoSuave, fontSize: 10, lineHeight: 12, textAlign: 'center', fontWeight: '700' },
   opcaoTextoSelecionado: { color: '#FFFFFF' },
   comentarioCard: { padding: 18, borderRadius: 18, backgroundColor: Cores.superficie, borderWidth: 1, borderColor: Cores.borda },
   comentarioTitulo: { color: Cores.texto, fontSize: 16, fontWeight: '700', paddingRight: 70 },
