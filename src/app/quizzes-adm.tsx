@@ -1,29 +1,19 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { listarPalestras, Palestra } from '@/services/palestraService';
+import { cadastrarQuiz, listarQuizzes, Quiz } from '@/services/quizService';
+import { erro as mostrarErro, sucesso } from '@/utils/notify';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { useAuth } from '@/contexts/AuthContext';
-import { listarPalestras, Palestra } from '@/services/palestraService';
-import { cadastrarQuiz, listarQuizzes, Quiz } from '@/services/quizService';
-
-const mostrarAlerta = (titulo: string, mensagem: string) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${titulo}\n\n${mensagem}`);
-  } else {
-    Alert.alert(titulo, mensagem);
-  }
-};
 
 // Limites alinhados com a API
 const TAMANHO_MAXIMO = 255;
@@ -61,35 +51,35 @@ export default function QuizzesAdmScreen() {
 
   const salvar = async () => {
     if (!usuario?.token) {
-      mostrarAlerta('Sessão expirada', 'Faça login novamente para cadastrar quizzes.');
+      mostrarErro('Sessão expirada', 'Faça login novamente para cadastrar quizzes.');
       return;
     }
     if (!titulo.trim()) {
-      mostrarAlerta('Campo obrigatório', 'É necessário informar o título do quiz.');
+      mostrarErro('Campo obrigatório', 'É necessário informar o título do quiz.');
       return;
     }
     if (titulo.trim().length < TAMANHO_MINIMO_TITULO) {
-      mostrarAlerta('Título inválido', `O título precisa ter pelo menos ${TAMANHO_MINIMO_TITULO} caracteres.`);
+      mostrarErro('Título inválido', `O título precisa ter pelo menos ${TAMANHO_MINIMO_TITULO} caracteres.`);
       return;
     }
     const pontos = Number(pontuacao);
     if (!Number.isInteger(pontos) || pontos <= 0) {
-      mostrarAlerta('Pontuação inválida', 'Informe uma pontuação inteira maior que zero.');
+      mostrarErro('Pontuação inválida', 'Informe uma pontuação inteira maior que zero.');
       return;
     }
     if (pontos > PONTUACAO_MAXIMA) {
-      mostrarAlerta('Pontuação inválida', `A pontuação pode ser no máximo ${PONTUACAO_MAXIMA}.`);
+      mostrarErro('Pontuação inválida', `A pontuação pode ser no máximo ${PONTUACAO_MAXIMA}.`);
       return;
     }
     if (palestraId === null) {
-      mostrarAlerta('Campo obrigatório', 'Selecione a palestra do quiz.');
+      mostrarErro('Campo obrigatório', 'Selecione a palestra do quiz.');
       return;
     }
     const tituloRepetido = cadastrados.some(
       (quiz) => quiz.palestra.id === palestraId && quiz.titulo.trim().toLowerCase() === titulo.trim().toLowerCase()
     );
     if (tituloRepetido) {
-      mostrarAlerta('Quiz duplicado', 'Já existe um quiz com este título para a palestra selecionada.');
+      mostrarErro('Quiz duplicado', 'Já existe um quiz com este título para a palestra selecionada.');
       return;
     }
 
@@ -101,14 +91,14 @@ export default function QuizzesAdmScreen() {
         pontuacao: pontos,
         palestraId,
       });
-      mostrarAlerta('Sucesso', 'Quiz cadastrado com sucesso!');
+      sucesso('Sucesso', 'Quiz cadastrado com sucesso!');
       setTitulo('');
       setDescricao('');
       setPontuacao('');
       setPalestraId(null);
       carregar();
     } catch (e) {
-      mostrarAlerta('Erro', e instanceof Error ? e.message : 'Não foi possível cadastrar o quiz.');
+      mostrarErro('Erro', e instanceof Error ? e.message : 'Não foi possível cadastrar o quiz.');
     } finally {
       setSalvando(false);
     }

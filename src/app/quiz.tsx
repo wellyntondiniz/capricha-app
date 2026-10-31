@@ -1,40 +1,30 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { useAuth } from '@/contexts/AuthContext';
 import {
   listarMinhasRespostas,
   listarQuizzes,
   Quiz,
   QuizErro,
-  ResultadoQuiz,
   responderQuiz,
+  ResultadoQuiz,
 } from '@/services/quizService';
+import { erro as mostrarErro } from '@/utils/notify';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Onde o participante resolve cada bloqueio (o servidor é quem decide se o quiz está liberado)
 const ROTA_DO_BLOQUEIO = {
   EVENT_CHECK_IN_REQUIRED: { rota: '/check-in', texto: 'Fazer check-in no evento' },
   LECTURE_CHECK_IN_REQUIRED: { rota: '/check-in-palestras', texto: 'Fazer check-in na palestra' },
 } as const;
-
-const mostrarAlerta = (titulo: string, mensagem: string) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${titulo}\n\n${mensagem}`);
-  } else {
-    Alert.alert(titulo, mensagem);
-  }
-};
 
 export default function QuizScreen() {
   // Cada usuário logado responde cada quiz uma única vez; o servidor identifica o usuário pela sessão
@@ -77,7 +67,7 @@ export default function QuizScreen() {
   const abrirQuiz = (quiz: Quiz) => {
     const resposta = respondidos[quiz.id];
     if (resposta || quiz.respondido) {
-      mostrarAlerta(
+      mostrarErro(
         'Quiz já respondido',
         resposta
           ? `Você já respondeu este quiz e fez ${resposta.pontosObtidos} de ${quiz.pontuacao} pontos.`
@@ -86,7 +76,7 @@ export default function QuizScreen() {
       return;
     }
     if (!quiz.disponivel) {
-      mostrarAlerta('Quiz indisponível', quiz.mensagemBloqueio ?? 'Este quiz não está disponível no momento.');
+      mostrarErro('Quiz indisponível', quiz.mensagemBloqueio ?? 'Este quiz não está disponível no momento.');
       return;
     }
     setQuizAtual(quiz);
@@ -117,7 +107,7 @@ export default function QuizScreen() {
 
     const faltando = quizAtual.perguntas.filter((p) => !escolhas[p.id]?.length).length;
     if (faltando > 0) {
-      mostrarAlerta('Quiz incompleto', `Responda todas as perguntas antes de enviar (${faltando} sem resposta).`);
+      mostrarErro('Quiz incompleto', `Responda todas as perguntas antes de enviar (${faltando} sem resposta).`);
       return;
     }
 
@@ -131,13 +121,13 @@ export default function QuizScreen() {
       // 403/409: o servidor recusou por regra (sem check-in, já respondido, evento encerrado...).
       // Volta para a lista, que é recarregada com a situação real do quiz.
       if (e instanceof QuizErro && (e.status === 403 || e.status === 409)) {
-        mostrarAlerta(e.status === 409 ? 'Quiz indisponível' : 'Check-in necessário', e.message);
+        mostrarErro(e.status === 409 ? 'Quiz indisponível' : 'Check-in necessário', e.message);
         voltarParaLista();
         setCarregando(true);
         carregar();
         return;
       }
-      mostrarAlerta('Erro', e instanceof Error ? e.message : 'Não foi possível enviar suas respostas.');
+      mostrarErro('Erro', e instanceof Error ? e.message : 'Não foi possível enviar suas respostas.');
     } finally {
       setEnviando(false);
     }
