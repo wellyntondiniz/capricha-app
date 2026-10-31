@@ -1,28 +1,22 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { listarPalestras, Palestra } from '@/services/palestraService';
+import { cadastrarQuiz, listarQuizzes, Quiz } from '@/services/quizService';
+import { erro } from '@/utils/notify';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { listarPalestras, Palestra } from '@/services/palestraService';
-import { cadastrarQuiz, listarQuizzes, Quiz } from '@/services/quizService';
-
 const mostrarAlerta = (titulo: string, mensagem: string) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${titulo}\n\n${mensagem}`);
-  } else {
-    Alert.alert(titulo, mensagem);
-  }
+  erro(titulo, mensagem);
 };
 
 // Limites alinhados com a API
